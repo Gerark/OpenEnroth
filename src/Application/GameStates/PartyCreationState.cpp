@@ -9,6 +9,7 @@
 #include <Engine/Tables/ItemTable.h>
 #include <Engine/TurnEngine/TurnEngine.h>
 #include <GUI/UI/UIPartyCreation.h>
+#include <GUI/UI/UIGame.h>
 #include <Library/Logger/Logger.h>
 #include <Media/Audio/AudioPlayer.h>
 
@@ -57,6 +58,8 @@ void PartyCreationState::update() {
         uGameState = GAME_STATE_PLAYING;
         SetCurrentMenuID(MENU_NEWGAME);
         _prepareParty();
+        pCurrentMapName = engine->config->gameplay.StartingMap.value();
+        bFlashQuestBook = true;
         executeTransition("partyCreated");
     }
 }
@@ -73,6 +76,12 @@ void PartyCreationState::_goBack() {
 }
 
 void PartyCreationState::_prepareParty() {
+    pParty->pPickedItem.uItemID = ITEM_NULL;
+
+    if (engine->config->debug.NoMargaret.value()) {
+        pParty->_questBits.set(QBIT_EMERALD_ISLAND_MARGARETH_OFF);
+    }
+
     for (Character &character : pParty->pCharacters) {
         if (character.classType == CLASS_KNIGHT)
             character.sResMagicBase = 10;

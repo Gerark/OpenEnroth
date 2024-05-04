@@ -64,8 +64,11 @@ void GameFSMBuilder::_buildMainMenu(FSMBuilder &builder) {
         .on("exit").jumpTo(FSM::exitState)
 
     .state<PartyCreationState>("PartyCreation")
-        .on("partyCreated").jumpTo(FSM::exitState)
+        .on("partyCreated").jumpTo("NewGameIntro")
         .on("back").jumpTo("MainMenu")
+
+    .state<VideoState>("NewGameIntro", "Intro Post")
+        .on("videoEnd").jumpTo(FSM::exitState)
 
     .state<LoadSlotState>("LoadGame")
         .on("slotConfirmed").jumpTo(FSM::exitState)

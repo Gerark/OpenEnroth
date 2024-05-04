@@ -38,8 +38,10 @@ void VideoState::enter() {
 }
 
 void VideoState::update() {
-    if (!_movie)
+    if (!_movie) {
         executeTransition("videoEnd");
+        return;
+    }
 
     bool isOver = _movie->renderFrame();
     if (isOver)

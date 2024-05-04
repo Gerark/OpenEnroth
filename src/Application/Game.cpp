@@ -184,16 +184,7 @@ std::string Game::loop() {
             }
             break;
         } else if (GetCurrentMenuID() == MENU_NEWGAME) {
-            pParty->pPickedItem.uItemID = ITEM_NULL;
-
-            pCurrentMapName = _config->gameplay.StartingMap.value();
-            bFlashQuestBook = true;
-            pMediaPlayer->PlayFullscreenMovie("Intro Post");
             SaveNewGame();
-            if (engine->config->debug.NoMargaret.value()) {
-                pParty->_questBits.set(QBIT_EMERALD_ISLAND_MARGARETH_OFF);
-            }
-
             gameLoop();
             if (uGameState == GAME_STATE_NEWGAME_OUT_GAMEMENU) {
                 SetCurrentMenuID(MENU_NEWGAME);
