@@ -156,36 +156,34 @@ int Game::run() {
 
         // Here we're still running the rest of the loops as usual
         uGameState = GAME_STATE_PLAYING;
-        if (!loop()) {
+        // Instead of returning a boolean the loop function now returns the state where we want to go in the FSM
+        // This is mostly needed for all those cases where we jump from game loop to menu states. Now that we have
+        // the party creation state in the FSM we need to know when to go back to it instead of reaching the Main Menu
+        // Soon, this loop() function will disappear anyway
+        if (std::string nextState = loop(); nextState.empty()) {
             break;
         } else {
-            fsm->jumpToState("MainMenu");
+            fsm->jumpToState(nextState);
         }
     } while (true);
 
     return 0;
 }
 
-bool Game::loop() {
+std::string Game::loop() {
     while (true) {
-        if (uGameState == GAME_FINISHED ||
-            GetCurrentMenuID() == MENU_EXIT_GAME) {
-            return false;
+        if (uGameState == GAME_FINISHED || GetCurrentMenuID() == MENU_EXIT_GAME) {
+            return "";
         } else if (GetCurrentMenuID() == MENU_LoadingProcInMainMenu) {
             uGameState = GAME_STATE_PLAYING;
             gameLoop();
             if (uGameState == GAME_STATE_NEWGAME_OUT_GAMEMENU) {
                 SetCurrentMenuID(MENU_NEWGAME);
                 uGameState = GAME_STATE_PLAYING;
-                continue;
+                return "PartyCreation";
             }
             break;
         } else if (GetCurrentMenuID() == MENU_NEWGAME) {
-            pActiveOverlayList->Reset();
-            if (!PartyCreationUI_Loop()) {
-                break;
-            }
-
             pParty->pPickedItem.uItemID = ITEM_NULL;
 
             pCurrentMapName = _config->gameplay.StartingMap.value();
@@ -200,7 +198,7 @@ bool Game::loop() {
             if (uGameState == GAME_STATE_NEWGAME_OUT_GAMEMENU) {
                 SetCurrentMenuID(MENU_NEWGAME);
                 uGameState = GAME_STATE_PLAYING;
-                continue;
+                return "PartyCreation";
             } else if (uGameState == GAME_STATE_GAME_QUITTING_TO_MAIN_MENU) {
                 break;
             }
@@ -217,7 +215,7 @@ bool Game::loop() {
         if (uGameState == GAME_STATE_NEWGAME_OUT_GAMEMENU) {
             SetCurrentMenuID(MENU_NEWGAME);
             uGameState = GAME_STATE_PLAYING;
-            continue;
+            return "PartyCreation";
         }
         if (uGameState == GAME_STATE_GAME_QUITTING_TO_MAIN_MENU) {  // from the loaded game
             uGameState = GAME_STATE_PLAYING;
@@ -225,7 +223,7 @@ bool Game::loop() {
         }
     }
 
-    return true;
+    return "MainMenu";
 }
 
 

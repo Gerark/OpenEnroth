@@ -20,3 +20,5 @@ class GUIWindow_PartyCreation : public GUIWindow {
     GraphicsImage *main_menu_background = nullptr;
     std::unique_ptr<GUIFont> ui_partycreation_font;
 };
+
+extern void CreateParty_EventLoop();

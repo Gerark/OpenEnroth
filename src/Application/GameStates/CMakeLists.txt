@@ -6,6 +6,7 @@ set(GAME_STATES_SOURCES
         LoadSlotState.cpp
         LoadStep2State.cpp
         MainMenuState.cpp
+        PartyCreationState.cpp
         VideoState.cpp)
 
 set(GAME_STATES_HEADERS
@@ -14,6 +15,7 @@ set(GAME_STATES_HEADERS
         LoadSlotState.h
         LoadStep2State.h
         MainMenuState.h
+        PartyCreationState.h
         VideoState.h)
 
 add_library(game_states STATIC ${GAME_STATES_SOURCES} ${GAME_STATES_HEADERS})

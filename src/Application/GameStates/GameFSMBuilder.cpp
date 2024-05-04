@@ -11,6 +11,7 @@
 #include "MainMenuState.h"
 #include "CreditsState.h"
 #include "LoadSlotState.h"
+#include "PartyCreationState.h"
 
 std::unique_ptr<FSM> GameFSMBuilder::buildFSM() {
     FSMBuilder fsmBuilder;
@@ -57,10 +58,14 @@ void GameFSMBuilder::_buildIntroVideoSequence(FSMBuilder &builder) {
 void GameFSMBuilder::_buildMainMenu(FSMBuilder &builder) {
     builder
     .state<MainMenuState>("MainMenu")
-        .on("newGame").jumpTo(FSM::exitState)
+        .on("newGame").jumpTo("PartyCreation")
         .on("loadGame").jumpTo("LoadGame")
         .on("credits").jumpTo("Credits")
         .on("exit").jumpTo(FSM::exitState)
+
+    .state<PartyCreationState>("PartyCreation")
+        .on("partyCreated").jumpTo(FSM::exitState)
+        .on("back").jumpTo("MainMenu")
 
     .state<LoadSlotState>("LoadGame")
         .on("slotConfirmed").jumpTo(FSM::exitState)
