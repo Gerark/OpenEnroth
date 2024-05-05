@@ -13,6 +13,7 @@
 #include "LoadStep2State.h"
 #include "MainMenuState.h"
 #include "PartyCreationState.h"
+#include "PrepareGameState.h"
 #include "VideoState.h"
 
 std::unique_ptr<FSM> GameFSMBuilder::buildFSM() {
@@ -79,14 +80,13 @@ void GameFSMBuilder::_buildMainMenu(FSMBuilder &builder) {
         .on("back").jumpTo("MainMenu")
 
     .state<CreditsState>("Credits")
-        .on("back").jumpTo("MainMenu");
-        /*
-    .state<PrepareGame>()
-        on("proceed").jumpTo("Game")
+        .on("back").jumpTo("MainMenu")
+
+    .state<PrepareGameState>("PrepareNewGame", false)
+        .on("proceed").jumpTo("Game")
 
     .state<InGameState>("Game")
         .on("backToMainMenu").jumpTo("MainMenu");
-        */
 }
 
 void GameFSMBuilder::_buildGame(FSMBuilder &builder) {

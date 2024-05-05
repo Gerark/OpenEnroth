@@ -23,8 +23,8 @@ class Game {
     int run();
 
  private:
-    std::string loop();
     void processQueuedMessages();
+    std::string loop();
     void gameLoop();
     void closeTargetedSpellWindow();
     void onEscape();
