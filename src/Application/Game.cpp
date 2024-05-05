@@ -174,34 +174,14 @@ std::string Game::loop() {
     while (true) {
         if (uGameState == GAME_FINISHED || GetCurrentMenuID() == MENU_EXIT_GAME) {
             return "";
-        } else if (GetCurrentMenuID() == MENU_LoadingProcInMainMenu) {
-            uGameState = GAME_STATE_PLAYING;
-            gameLoop();
-            if (uGameState == GAME_STATE_NEWGAME_OUT_GAMEMENU) {
-                SetCurrentMenuID(MENU_NEWGAME);
-                uGameState = GAME_STATE_PLAYING;
-                return "PartyCreation";
-            }
-            break;
-        } else if (GetCurrentMenuID() == MENU_NEWGAME) {
-            gameLoop();
-            if (uGameState == GAME_STATE_NEWGAME_OUT_GAMEMENU) {
-                SetCurrentMenuID(MENU_NEWGAME);
-                uGameState = GAME_STATE_PLAYING;
-                return "PartyCreation";
-            } else if (uGameState == GAME_STATE_GAME_QUITTING_TO_MAIN_MENU) {
-                break;
-            }
-            assert(false && "Invalid game state");
-        } else if (GetCurrentMenuID() == MENU_5 || GetCurrentMenuID() == MENU_LoadingProcInMainMenu) {
+        } else if (
+            GetCurrentMenuID() == MENU_LoadingProcInMainMenu ||
+            GetCurrentMenuID() == MENU_NEWGAME ||
+            GetCurrentMenuID() == MENU_5) {
             uGameState = GAME_STATE_PLAYING;
             gameLoop();
         }
-        if (uGameState == GAME_STATE_LOADING_GAME) {
-            SetCurrentMenuID(MENU_5);
-            uGameState = GAME_STATE_PLAYING;
-            continue;
-        }
+
         if (uGameState == GAME_STATE_NEWGAME_OUT_GAMEMENU) {
             SetCurrentMenuID(MENU_NEWGAME);
             uGameState = GAME_STATE_PLAYING;
