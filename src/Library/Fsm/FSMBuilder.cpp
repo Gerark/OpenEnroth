@@ -51,7 +51,7 @@ FSMBuilder &FSMBuilder::jumpTo(std::function<bool()> condition, std::string_view
         return *this;
     }
 
-    _states.back()->transitions[_latestOnTransition].push_back(FSMTransitionTarget{std::string(targetState), condition});
+    _states.back()->transitions[_latestOnTransition].targets.push_back(FSMTransitionTarget{std::string(targetState), condition});
     return *this;
 }
 
@@ -63,4 +63,20 @@ std::unique_ptr<FSM> FSMBuilder::build() {
     _states.clear();
     _latestOnTransition.clear();
     return std::move(fsm);
+}
+
+FSMBuilder &FSMBuilder::execute(const std::function<void()>& callback) {
+    if (_states.empty()) {
+        logger->warning(FSM::fsmLogCategory, "Can't set a callback to run during a transition. No state has been setup in the FSMBuilder.");
+        return *this;
+    }
+
+    if (_latestOnTransition.empty()) {
+        logger->warning(FSM::fsmLogCategory, "Can't set a callback to run during a transition. No 'on' event has been defined yet. State [{}]",
+            _states.back()->name);
+        return *this;
+    }
+
+    _states.back()->transitions[_latestOnTransition].callback = callback;
+    return *this;
 }

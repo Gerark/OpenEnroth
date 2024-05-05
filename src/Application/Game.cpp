@@ -184,7 +184,6 @@ std::string Game::loop() {
             }
             break;
         } else if (GetCurrentMenuID() == MENU_NEWGAME) {
-            SaveNewGame();
             gameLoop();
             if (uGameState == GAME_STATE_NEWGAME_OUT_GAMEMENU) {
                 SetCurrentMenuID(MENU_NEWGAME);

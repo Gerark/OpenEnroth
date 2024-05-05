@@ -1,6 +1,7 @@
 #include "GameFSMBuilder.h"
 
 #include <Engine/Engine.h>
+#include <Engine/SaveLoad.h>
 #include <Library/Fsm/FSMBuilder.h>
 
 #include <utility>
@@ -68,7 +69,9 @@ void GameFSMBuilder::_buildMainMenu(FSMBuilder &builder) {
         .on("back").jumpTo("MainMenu")
 
     .state<VideoState>("NewGameIntro", "Intro Post")
-        .on("videoEnd").jumpTo(FSM::exitState)
+        .on("videoEnd")
+            .execute([](){ SaveNewGame(); })
+            .jumpTo(FSM::exitState)
 
     .state<LoadSlotState>("LoadGame")
         .on("slotConfirmed").jumpTo(FSM::exitState)

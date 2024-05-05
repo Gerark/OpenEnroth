@@ -31,6 +31,7 @@ void FSM::update() {
             if (_currentState) {
                 _currentState->state->exit();
                 _currentState->hasExited = true;
+                _callTransitionCallback();
             }
             _currentState = _nextState;
             _nextState = nullptr;
@@ -43,6 +44,7 @@ void FSM::update() {
         if (_hasReachedExitState) {
             _currentState->state->exit();
             _currentState->hasExited = true;
+            _callTransitionCallback();
             _currentState = nullptr;
         }
     }
@@ -75,7 +77,7 @@ void FSM::executeTransition(std::string_view transition) {
 
     // Check if there's at least one transition condition that evaluates to true
     FSMTransitionTarget *transitionTarget = nullptr;
-    for (auto &target : itr->second) {
+    for (auto &target : itr->second.targets) {
         if (!target.condition || target.condition()) {
             transitionTarget = &target;
             break;
@@ -88,6 +90,7 @@ void FSM::executeTransition(std::string_view transition) {
     }
 
     jumpToState(transitionTarget->stateName);
+    _setNextTransitionCallback(&itr->second.callback);
 }
 
 FSM::StateEntry *FSM::_getStateByName(std::string_view stateName) {
@@ -207,4 +210,15 @@ bool FSM::textInputEvent(const PlatformTextInputEvent *event) {
         return false;
     }
     return _currentState->state->textInputEvent(event);
+}
+
+void FSM::_setNextTransitionCallback(std::function<void()> *callback) {
+    _nextTransitionCallback = callback;
+}
+
+void FSM::_callTransitionCallback() {
+    if (_nextTransitionCallback && *_nextTransitionCallback) {
+        (*_nextTransitionCallback)();
+    }
+    _nextTransitionCallback = nullptr;
 }

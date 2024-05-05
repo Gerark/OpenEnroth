@@ -33,6 +33,7 @@ class FSMBuilder {
     FSMBuilder &on(std::string_view transitionName);
     FSMBuilder &jumpTo(std::string_view targetState);
     FSMBuilder &jumpTo(std::function<bool()> condition, std::string_view targetState);
+    FSMBuilder &execute(const std::function<void()>& callback);
 
     std::unique_ptr<FSM> build();
 

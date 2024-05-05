@@ -38,7 +38,7 @@ void VideoState::enter() {
 }
 
 void VideoState::update() {
-    if (!_movie) {
+    if (!_movie || _skipVideo) {
         executeTransition("videoEnd");
         return;
     }
@@ -46,10 +46,6 @@ void VideoState::update() {
     bool isOver = _movie->renderFrame();
     if (isOver)
         executeTransition("videoEnd");
-}
-
-void VideoState::_skipVideo() {
-    executeTransition("videoEnd");
 }
 
 void VideoState::exit() {
@@ -61,14 +57,14 @@ void VideoState::exit() {
 
 bool VideoState::mousePressEvent(const PlatformMouseEvent *event) {
     // We skip the video if we press any mouse button
-    _skipVideo();
+    _skipVideo = true;
     return true;
 }
 
 bool VideoState::keyPressEvent(const PlatformKeyEvent *event) {
     // We skip the video if we press any key button
     if (!event->isAutoRepeat) {
-        _skipVideo();
+        _skipVideo = true;
         return true;
     }
     return false;

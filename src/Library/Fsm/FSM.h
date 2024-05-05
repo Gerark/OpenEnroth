@@ -19,7 +19,12 @@ struct FSMTransitionTarget {
     std::function<bool()> condition{};
 };
 
-using FSMTransitions = std::unordered_map<TransparentString, std::vector<FSMTransitionTarget>, TransparentStringHash, TransparentStringEquals>;
+struct FSMTransition {
+    std::function<void()> callback{};
+    std::vector<FSMTransitionTarget> targets{};
+};
+
+using FSMTransitions = std::unordered_map<TransparentString, FSMTransition, TransparentStringHash, TransparentStringEquals>;
 
 class FSM : public FSMTransitionHandler, public FSMEventHandler {
  public:
@@ -77,10 +82,12 @@ class FSM : public FSMTransitionHandler, public FSMEventHandler {
     virtual bool textInputEvent(const PlatformTextInputEvent *event) override;
 
     StateEntry *_getStateByName(std::string_view stateName);
-    void _createDefaultStates();
+    void _setNextTransitionCallback(std::function<void()> *callback);
+    void _callTransitionCallback();
 
     std::unordered_map<TransparentString, std::unique_ptr<StateEntry>, TransparentStringHash, TransparentStringEquals> _states;
     StateEntry *_currentState{};
     StateEntry *_nextState{};
+    std::function<void()> *_nextTransitionCallback{};
     bool _hasReachedExitState{};
 };
