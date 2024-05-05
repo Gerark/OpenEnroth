@@ -133,7 +133,7 @@ int Game::run() {
     window->activate();
     ::eventLoop->processMessages(eventHandler);
 
-    std::unique_ptr<FSM> fsm = GameFSMBuilder::buildFSM();
+    std::unique_ptr<FSM> fsm = GameFSMBuilder::buildFSM(*this);
     GameWindowHandler* gameWindowHandler = ::application->component<GameWindowHandler>();
     // Need to have this do/while external loop till we remove entirely all the states
     do {

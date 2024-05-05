@@ -16,10 +16,11 @@
 #include "PrepareGameState.h"
 #include "VideoState.h"
 
-std::unique_ptr<FSM> GameFSMBuilder::buildFSM() {
+std::unique_ptr<FSM> GameFSMBuilder::buildFSM(Game &game) {
     FSMBuilder fsmBuilder;
     _buildIntroVideoSequence(fsmBuilder);
     _buildMainMenu(fsmBuilder);
+    _buildGame(fsmBuilder, game);
     auto fsm = fsmBuilder.build();
     _setStartingState(*fsm);
     return std::move(fsm);
@@ -64,6 +65,8 @@ void GameFSMBuilder::_buildMainMenu(FSMBuilder &builder) {
         .on("newGame").jumpTo("PartyCreation")
         .on("loadGame").jumpTo("LoadGame")
         .on("credits").jumpTo("Credits")
+        //We have already a Prepare and Game state but they are still WIP so we exit from the fsm
+        //and let the default game flow running
         .on("exit").jumpTo(FSM::exitState)
 
     .state<PartyCreationState>("PartyCreation")
@@ -73,21 +76,25 @@ void GameFSMBuilder::_buildMainMenu(FSMBuilder &builder) {
     .state<VideoState>("NewGameIntro", "Intro Post")
         .on("videoEnd")
             .execute([](){ SaveNewGame(); })
+            //We have already a Prepare and Game state but they are still WIP so we exit from the fsm
+            //and let the default game flow running
             .jumpTo(FSM::exitState)
 
     .state<LoadSlotState>("LoadGame")
+        //We have already a Prepare and Game state but they are still WIP so we exit from the fsm
+        //and let the default game flow running
         .on("slotConfirmed").jumpTo(FSM::exitState)
         .on("back").jumpTo("MainMenu")
 
     .state<CreditsState>("Credits")
-        .on("back").jumpTo("MainMenu")
+        .on("back").jumpTo("MainMenu");
+}
 
+void GameFSMBuilder::_buildGame(FSMBuilder &builder, Game &game) {
+    builder
     .state<PrepareGameState>("PrepareNewGame", false)
         .on("proceed").jumpTo("Game")
 
-    .state<InGameState>("Game")
-        .on("backToMainMenu").jumpTo("MainMenu");
-}
-
-void GameFSMBuilder::_buildGame(FSMBuilder &builder) {
+    .state<InGameState>("Game", game)
+        .on("back").jumpTo("MainMenu");
 }

@@ -33,16 +33,16 @@ void PrepareGameState::enter() {
     pTurnEngine->End(false);
     pParty->bTurnBasedModeOn = false;  // Make sure turn engine and party turn based mode flag are in sync.
 
+    // Todo(Gerark) Do PrepareWorld is calling various draw internally. We should treate PrepareGameState more like a loading state
     DoPrepareWorld(_isLoadedGame, 1);
     pEventTimer->setPaused(false);
     dword_6BE364_game_settings_1 |= GAME_SETTINGS_0080_SKIP_USER_INPUT_THIS_FRAME;
 
     current_screen_type = SCREEN_GAME;
-
-    executeTransition("proceed");
 }
 
 void PrepareGameState::update() {
+    executeTransition("proceed");
 }
 
 void PrepareGameState::exit() {

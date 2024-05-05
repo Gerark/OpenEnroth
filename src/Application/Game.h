@@ -21,9 +21,9 @@ class Game {
     ~Game();
 
     int run();
+    void processQueuedMessages();
 
  private:
-    void processQueuedMessages();
     std::string loop();
     void gameLoop();
     void closeTargetedSpellWindow();
