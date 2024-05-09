@@ -1,22 +1,22 @@
-local CommandManager = require "dev.commands.command_manager"
-local ConfigCommand = require "dev.commands.config_command"
-local GoldCommand = require "dev.commands.gold_command"
-local XpCommand = require "dev.commands.xp_command"
-local SpCommand = require "dev.commands.skillpoints_command"
-local FoodCommand = require "dev.commands.food_command"
-local AlignmentCommand = require "dev.commands.alignment_command"
-local InventoryCommand = require "dev.commands.inventory_command"
-local LuaCommand = require "dev.commands.run_lua_command"
-local ClearConsoleCommand = require "dev.commands.cls_command"
-local ConditionCommand = require "dev.commands.condition_command"
-local HpCommand = require "dev.commands.hp_command"
-local ManaCommand = require "dev.commands.mana_command"
-local SkillsCommand = require "dev.commands.skills_command"
-local ClassCommand = require "dev.commands.class_command"
+local Commands = {}
+Commands.ConfigCommand = require "dev.commands.config_command"
+Commands.GoldCommand = require "dev.commands.gold_command"
+Commands.XpCommand = require "dev.commands.xp_command"
+Commands.SpCommand = require "dev.commands.skillpoints_command"
+Commands.FoodCommand = require "dev.commands.food_command"
+Commands.AlignmentCommand = require "dev.commands.alignment_command"
+Commands.InventoryCommand = require "dev.commands.inventory_command"
+Commands.LuaCommand = require "dev.commands.run_lua_command"
+Commands.ClearConsoleCommand = require "dev.commands.cls_command"
+Commands.ConditionCommand = require "dev.commands.condition_command"
+Commands.HpCommand = require "dev.commands.hp_command"
+Commands.ManaCommand = require "dev.commands.mana_command"
+Commands.SkillsCommand = require "dev.commands.skills_command"
+Commands.ClassCommand = require "dev.commands.class_command"
 
 local Renderer = require "bindings.renderer"
 
-local reloadShadersCommand = {
+Commands.reloadShadersCommand = {
     name = "reload_shaders",
     description = "Reload all shaders",
     callback = function ()
@@ -34,26 +34,4 @@ local reloadShadersCommand = {
 --    end
 --}
 
---- @class GameCommands
-local GameCommands = {}
-
---- Register all the commands used in the dev console
-GameCommands.registerGameCommands = function ()
-    CommandManager.register(ConfigCommand)
-    CommandManager.register(GoldCommand)
-    CommandManager.register(XpCommand)
-    CommandManager.register(SpCommand)
-    CommandManager.register(FoodCommand)
-    CommandManager.register(AlignmentCommand)
-    CommandManager.register(InventoryCommand)
-    CommandManager.register(LuaCommand)
-    CommandManager.register(ClearConsoleCommand)
-    CommandManager.register(reloadShadersCommand)
-    CommandManager.register(ConditionCommand)
-    CommandManager.register(HpCommand)
-    CommandManager.register(ManaCommand)
-    CommandManager.register(SkillsCommand)
-    CommandManager.register(ClassCommand)
-end
-
-return GameCommands
+return Commands

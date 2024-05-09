@@ -23,6 +23,7 @@ class ScriptingSystem {
     ~ScriptingSystem();
 
     void executeEntryPoint();
+    void reload();
 
     template<typename TBindings, typename ...TArgs>
     void addBindings(std::string_view bindingTableName, TArgs &&... args) {
@@ -34,14 +35,17 @@ class ScriptingSystem {
 
  private:
     void _initBaseLibraries();
-    void _initPackageTable(std::string_view scriptFolder);
+    void _initPackageTable();
     void _initBindingFunction();
+    void _clearPackageTable();
+    void _callUninitializeFunction();
 
     std::unique_ptr<sol::state> _solState;
     std::unique_ptr<LogSink> _scriptingLogSink;
     std::unordered_map<std::string, std::unique_ptr<IBindings>> _bindings;
     std::string _scriptFolder;
     std::string _entryPointFile;
+    sol::reference _uninitializeFunctionReference;
     PlatformApplication &_platformApplication;
     DistLogSink &_distLogSink;
 };

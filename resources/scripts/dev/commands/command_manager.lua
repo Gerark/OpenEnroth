@@ -49,8 +49,19 @@ local helpCommand = {
 }
 
 local CommandManager = {
-    register = function (command)
+    registerCommand = function (command)
         commandList[command.name] = command
+    end,
+
+    ---@param commands table<string, any> - Table containing all the commands that should be registered
+    registerCommands = function (commands)
+        for _, command in pairs(commands) do
+            commandList[command.name] = command
+        end
+    end,
+
+    clearCommands = function ()
+        commandList = {}
     end,
 
     execute = function (commandLine)
@@ -109,6 +120,6 @@ local CommandManager = {
     list = commandList
 }
 
-CommandManager.register(helpCommand)
+CommandManager.registerCommand(helpCommand)
 
 return CommandManager

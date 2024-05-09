@@ -1,37 +1,34 @@
 require "core.error"
 
 local Overlay = require "bindings.overlay"
+local Input = require "bindings.input"
+local Scripting = require "bindings.scripting"
+
 local ConsoleOverlay = require "dev.console_overlay"
 local CheatOverlay = require "dev.cheat_command_overlay"
-local GameCommands = require "dev.commands.game_commands"
+local Commands = require "dev.commands.game_commands"
+local CommandManager = require "dev.commands.command_manager"
+local InputListener = require "core.input_listener"
 
-GameCommands.registerGameCommands()
-
+CommandManager.registerCommands(Commands)
 Overlay.addOverlay("console", ConsoleOverlay)
 Overlay.addOverlay("cheatTable", CheatOverlay)
 
---[[
-    Here's a little example of how to create a simple Overlay to render
-    a window with a text and register it to the system
-
-local myOverlay = {
-    init = function ()
-        print("Init Function")
-    end,
-
-    ---@param ctx NuklearContext
-    update = function (ctx)
-        Overlay.nk.window_begin(ctx, "HELLO WORLD", { x = 200, y = 200, w = 300, h = 100 },
-            { "scalable", "movable", "title" })
-        Overlay.nk.layout_row_dynamic(ctx, 0, 1)
-        Overlay.nk.label_colored(ctx, "HELLO THERE!!!", { 255, 255, 0, 255 })
-        Overlay.nk.window_end(ctx)
-    end,
-
-    close = function ()
-        print("Close Function")
+local unregisterReloadInput = InputListener.registerKeyPress(
+    Input.PlatformKey.KEY_TILDE,
+    ---@param mods integer
+    function (mods)
+        ---@diagnostic disable-next-line: no-unknown
+        if bit32.band(mods, Input.PlatformModifier.MOD_CTRL) ~= 0 then
+            Scripting.reloadSystem()
+        end
     end
-}
+)
 
-Overlay.addOverlay("MyOverlay", myOverlay)
-]]
+--- The init.lua returns a function called when the scripting system shutdown/reload
+return function ()
+    unregisterReloadInput()
+    CommandManager.clearCommands()
+    Overlay.removeOverlay("console")
+    Overlay.removeOverlay("cheatTable")
+end

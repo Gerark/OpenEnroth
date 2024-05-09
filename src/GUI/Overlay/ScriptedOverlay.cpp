@@ -42,9 +42,9 @@ void ScriptedOverlay::_addFunctionToRegistry(sol::table &table, sol::reference &
 
 sol::protected_function ScriptedOverlay::_prepareFunction(sol::reference &functionReference) {
     sol::table registry = _solState.registry();
-    sol::protected_function updateFunction = registry[functionReference.registry_index()];
-    _setErrorHandler(updateFunction);
-    return updateFunction;
+    sol::protected_function function = registry[functionReference.registry_index()];
+    _setErrorHandler(function);
+    return function;
 }
 
 void ScriptedOverlay::_setErrorHandler(sol::protected_function &function) {

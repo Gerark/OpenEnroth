@@ -20,25 +20,49 @@ LogCategory ScriptingSystem::ScriptingLogCategory("Script");
 ScriptingSystem::ScriptingSystem(std::string_view scriptFolder, std::string_view entryPointFile, PlatformApplication &platformApplication, DistLogSink &distLogSink)
     : _scriptFolder(scriptFolder), _entryPointFile(entryPointFile), _platformApplication(platformApplication), _distLogSink(distLogSink) {
     _solState = std::make_unique<sol::state>();
-    _scriptingLogSink = std::make_unique<ScriptLogSink>(*_solState);
     _platformApplication.installComponent(std::make_unique<InputScriptEventHandler>(*_solState));
+    _scriptingLogSink = std::make_unique<ScriptLogSink>(*_solState);
     _distLogSink.addLogSink(_scriptingLogSink.get());
-
     _initBaseLibraries();
-    _initPackageTable(scriptFolder);
+    _initPackageTable();
     _initBindingFunction();
 }
 
 ScriptingSystem::~ScriptingSystem() {
-    _platformApplication.removeComponent<InputScriptEventHandler>();
+    _callUninitializeFunction();
+    _uninitializeFunctionReference.reset();
     _distLogSink.removeLogSink(_scriptingLogSink.get());
+    _platformApplication.removeComponent<InputScriptEventHandler>();
 }
 
 void ScriptingSystem::executeEntryPoint() {
     try {
-        _solState->script_file(makeDataPath(_scriptFolder, _entryPointFile));
+        sol::protected_function_result result = _solState->script_file(makeDataPath(_scriptFolder, _entryPointFile));
+        if (result.valid()) {
+            if (auto function = result.get<sol::function>(); function.valid()) {
+                _uninitializeFunctionReference = sol::make_reference(*_solState, function);
+            }
+        }
     } catch (const sol::error &e) {
         logger->warning(ScriptingLogCategory, "An unexpected error has occurred: {}", e.what());
+    }
+}
+
+void ScriptingSystem::reload() {
+    _callUninitializeFunction();
+    _uninitializeFunctionReference.reset();
+    _distLogSink.removeLogSink(_scriptingLogSink.get());
+    _platformApplication.removeComponent<InputScriptEventHandler>();
+
+    _solState->collect_garbage();
+    executeEntryPoint();
+}
+
+void ScriptingSystem::_callUninitializeFunction() {
+    sol::table registry = _solState->registry();
+    sol::protected_function function = registry[_uninitializeFunctionReference.registry_index()];
+    if (function.valid()) {
+        function.call();
     }
 }
 
@@ -83,11 +107,16 @@ int _loadBindingTableThroughRequire(lua_State *luaState) {
     return 0;
 }
 
-void ScriptingSystem::_initPackageTable(std::string_view scriptFolder) {
+void ScriptingSystem::_initPackageTable() {
     sol::table packageTable = (*_solState)["package"];
-    packageTable["path"] = makeDataPath(scriptFolder, "?.lua");
+    packageTable["path"] = makeDataPath(_scriptFolder, "?.lua");
     packageTable["cpath"] = ""; //Reset the path for any c loaders
     _solState->add_package_loader(_loadBindingTableThroughRequire);
+}
+
+void ScriptingSystem::_clearPackageTable() {
+    sol::table packageTable = (*_solState)["package"];
+    packageTable["loaded"] = _solState->create_table();
 }
 
 void ScriptingSystem::_initBindingFunction() {

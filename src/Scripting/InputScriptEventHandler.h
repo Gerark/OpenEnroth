@@ -6,7 +6,9 @@
 
 class InputScriptEventHandler : public PlatformEventFilter {
  public:
-    explicit InputScriptEventHandler(sol::state_view solState);
+    explicit InputScriptEventHandler(sol::state_view &solState);
+
+    void updateState(sol::state_view solState);
 
     virtual bool keyPressEvent(const PlatformKeyEvent *event) override;
 

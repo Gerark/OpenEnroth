@@ -1,13 +1,24 @@
 --- @meta
 
---- @alias PlatformKey integer
-
+--- @enum PlatformKey
 --- @class PlatformKeyEnum
+--- @field KEY_TILDE PlatformKey
 --- @field KEY_DOWN PlatformKey
 --- @field KEY_UP PlatformKey
+--- @field KEY_LEFT PlatformKey
+--- @field KEY_RIGHT PlatformKey
+
+--- @enum PlatformModifier
+--- @class PlatformModifierEnum
+--- @field MOD_SHIFT PlatformModifier
+--- @field MOD_CTRL PlatformModifier
+--- @field MOD_ALT PlatformModifier
+--- @field MOD_META PlatformModifier
+--- @field MOD_NUM PlatformModifier
 
 --- @class InputBindings
 --- @field PlatformKey PlatformKeyEnum
+--- @field PlatformModifier PlatformModifierEnum
 
 --- @class MiscBindings
 --- @field goToScreen fun(screenId: integer)
@@ -35,6 +46,9 @@
 
 --- @class PlatformBindings
 --- @field window PlatformWindow
+
+--- @class ScriptingBindings
+--- @field reloadSystem fun()
 
 --- CONFIG Bindings
 

@@ -4,7 +4,8 @@
         "disable": [],
         "globals": [
             "enumToString",
-            "stringToEnum"
+            "stringToEnum",
+            "bit32"
         ],
         "groupFileStatus": {
             "ambiguity": "Any",

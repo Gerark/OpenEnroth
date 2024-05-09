@@ -7,13 +7,6 @@
 
 #include "InputScriptEventHandler.h"
 
-InputBindings::InputBindings(InputScriptEventHandler &inputScriptEventHandler)
-    : _inputScriptEventHandler(inputScriptEventHandler) {
-    /*_inputScriptEventHandler.setScriptFunctionProvider([this](std::string_view functionName) {
-        return _solState[functionName];
-    });*/
-}
-
 sol::table InputBindings::createBindingTable(sol::state_view &solState) const {
     sol::table table = solState.create_table();
     _fillTableWithEnums(table);
@@ -79,8 +72,8 @@ void InputBindings::_fillTableWithEnums(sol::table &table) const {
         "KEY_SLASH", PlatformKey::KEY_SLASH,
         "KEY_SINGLEQUOTE", PlatformKey::KEY_SINGLEQUOTE,
         "KEY_BACKSLASH", PlatformKey::KEY_BACKSLASH,
-        "KEY_TILDE", PlatformKey::KEY_TILDE,
         */
+        "KEY_TILDE", PlatformKey::KEY_TILDE,
         "KEY_LEFT", PlatformKey::KEY_LEFT,
         "KEY_RIGHT", PlatformKey::KEY_RIGHT,
         "KEY_UP", PlatformKey::KEY_UP,
@@ -133,5 +126,13 @@ void InputBindings::_fillTableWithEnums(sol::table &table) const {
         "KEY_GAMEPAD_L2", PlatformKey::KEY_GAMEPAD_L2,
         "KEY_GAMEPAD_R2", PlatformKey::KEY_GAMEPAD_R2
         */
+    );
+
+    table.new_enum<false>("PlatformModifier",
+        "MOD_SHIFT", PlatformModifier::MOD_SHIFT,
+        "MOD_CTRL", PlatformModifier::MOD_CTRL,
+        "MOD_ALT", PlatformModifier::MOD_ALT,
+        "MOD_META", PlatformModifier::MOD_META,
+        "MOD_NUM", PlatformModifier::MOD_NUM
     );
 }

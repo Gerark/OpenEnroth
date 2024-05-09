@@ -1,11 +1,11 @@
 local InputListener = {}
 
----@type table<PlatformKey, table<integer, fun()>>
+---@type table<PlatformKey, table<integer, fun(mods:integer)>>
 local keyPressedCallbacks = {}
 
 ---register a callback to the Keyboard press event
 ---@param key PlatformKey
----@param callback fun()
+---@param callback fun(mod:integer)
 ---@return function - call this function to unregister the callback
 InputListener.registerKeyPress = function (key, callback)
     local callbacks = keyPressedCallbacks[key]
@@ -49,14 +49,15 @@ end
 ---The _globalOnKeyPress function is a OE special function called from c++
 ---when a new keyPress event is triggered
 ---@param keyPressed PlatformKey
+---@param mods integer - Modifier ( can be bit checked to know if ctrl )
 ---@return boolean - Indicate if the input has been handled or not, in order to keep the propagation
 ---@private
 ---@diagnostic disable-next-line: name-style-check
-_globalOnKeyPress = function (keyPressed)
+_globalOnKeyPress = function (keyPressed, mods)
     for key, callbacks in pairs(keyPressedCallbacks) do
         if key == keyPressed then
             for _, callback in pairs(callbacks) do
-                if callback() then
+                if callback(mods) then
                     return true
                 end
             end

@@ -11,6 +11,7 @@ set(SCRIPTING_SOURCES
         NuklearLegacyBindings.cpp
         PlatformBindings.cpp
         RendererBindings.cpp
+        ScriptingBindings.cpp
         ScriptingSystem.cpp
         ScriptLogSink.cpp)
 
@@ -26,6 +27,7 @@ set(SCRIPTING_HEADERS
         LuaItemQueryTable.h
         PlatformBindings.h
         RendererBindings.h
+        ScriptingBindings.h
         ScriptingSystem.h
         ScriptLogSink.h)
 
