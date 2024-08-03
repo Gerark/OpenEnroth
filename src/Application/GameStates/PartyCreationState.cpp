@@ -49,14 +49,17 @@ FsmAction PartyCreationState::enter() {
 FsmAction PartyCreationState::update() {
     pMiscTimer->tick(); // This one is used for animations.
 
-    // Not ideal to call this function, I'd prefer to manage the events directly in the state
-    // And then dispatch only the relevant info to the UI. By doing so I'll be able to get rid of
-    // the checks on the uGameState and return the transition immediately.
+    // TODO(Gerark) Not ideal to call this function, It's preferable to manage the events directly in the state
+    // And then dispatch only the relevant info to the UI. By doing so we'll be able to get rid of
+    // the checks on the uGameState and return the transition instead.
     CreateParty_EventLoop();
 
     if (uGameState == GAME_FINISHED) {  // if click Esc in PlayerCreation Window
         uGameState = GAME_STATE_PLAYING;
         SetCurrentMenuID(MENU_MAIN);
+        // TODO(Gerark) Remove this GUI_UpdateWindows once we have a proper Retained Mode UI system.
+        // Right now we're forced to call this to cause the proper removal of temporary "buttons"
+        GUI_UpdateWindows();
         return FsmAction::transition("back");
     }
     if (uGameState == GAME_STATE_STARTING_NEW_GAME) {  // if click OK in PlayerCreation
@@ -64,6 +67,9 @@ FsmAction PartyCreationState::update() {
         SetCurrentMenuID(MENU_NEWGAME);
         _prepareParty();
         bFlashQuestBook = true;
+        // TODO(Gerark) Remove this GUI_UpdateWindows once we have a proper Retained Mode UI system.
+        // Right now we're forced to call this to cause the proper removal of temporary "buttons"
+        GUI_UpdateWindows();
         return FsmAction::transition("partyCreated");
     }
 
