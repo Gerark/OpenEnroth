@@ -11,7 +11,8 @@ class VideoState : public FsmState {
  public:
     enum class Type {
         VIDEO_LOGO,
-        VIDEO_INTRO
+        VIDEO_INTRO,
+        VIDEO_NEW_GAME_INTRO
     };
     using enum Type;
 

@@ -184,6 +184,8 @@ class Character {
     int GetMaxHealth() const;
     int GetMana() const { return this->mana; }
     int GetMaxMana() const;
+    void resetToFullHealth();
+    void resetToFullMana();
 
     int GetBaseAC() const;
     int GetActualAC() const;

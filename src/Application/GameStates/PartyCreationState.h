@@ -17,7 +17,7 @@ class PartyCreationState : public FsmState {
 
  private:
     void _prepareParty();
-    void _setupCharacterBasedOnSkills(Character &character);
+    void _setupCharacterBasedOnStartingSkills(Character &character);
     void _addRandomRing(Character &character);
     void _identifyAllStartingItems(Character &character);
     void _resetLastOpenedSpellBookPage(Character &character);

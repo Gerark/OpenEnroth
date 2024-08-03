@@ -90,7 +90,7 @@ void PartyCreationState::_prepareParty() {
 
         _resetLastOpenedSpellBookPage(character);
         _addRandomRing(character);
-        _setupCharacterBasedOnSkills(character);
+        _setupCharacterBasedOnStartingSkills(character);
         _identifyAllStartingItems(character);
     }
 
@@ -107,7 +107,7 @@ void PartyCreationState::_addRandomRing(Character &character) {
     character.AddItem2(-1, &item);
 }
 
-void PartyCreationState::_setupCharacterBasedOnSkills(Character &character) {
+void PartyCreationState::_setupCharacterBasedOnStartingSkills(Character &character) {
     for (CharacterSkillType j : allSkills()) {
         if (!character.pActiveSkills[j]) continue;
 

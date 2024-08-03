@@ -10,6 +10,7 @@
 #include "LoadSlotState.h"
 #include "LoadStep2State.h"
 #include "MainMenuState.h"
+#include "PartyCreationState.h"
 #include "StartState.h"
 #include "VideoState.h"
 
@@ -45,11 +46,18 @@ void GameFsmBuilder::_buildIntroVideoSequence(FsmBuilder &builder) {
 void GameFsmBuilder::_buildMainMenu(FsmBuilder &builder) {
     builder
     .state<MainMenuState>("MainMenu")
-        .on("newGame").exitFsm()
+        .on("newGame").jumpTo("PartyCreation")
         .on("loadGame").jumpTo("LoadSlot")
         .on("quickLoadGame").exitFsm()
         .on("credits").jumpTo("Credits")
         .on("exitGame").exitFsm()
+
+    .state<PartyCreationState>("PartyCreation")
+        .on("partyCreated").jumpTo("NewGameIntro")
+        .on("back").jumpTo("MainMenu")
+
+    .state<VideoState>("NewGameIntro", VideoState::VIDEO_NEW_GAME_INTRO, "Intro Post")
+        .on("videoEnd").exitFsm()
 
     .state<LoadSlotState>("LoadSlot")
         .on("slotConfirmed").exitFsm()
