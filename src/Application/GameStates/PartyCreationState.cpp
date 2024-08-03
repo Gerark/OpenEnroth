@@ -18,7 +18,7 @@
 PartyCreationState::PartyCreationState() {
 }
 
-void PartyCreationState::enter() {
+FsmAction PartyCreationState::enter() {
     pActiveOverlayList->Reset();
 
     pAudioPlayer->MusicStop();
@@ -42,26 +42,32 @@ void PartyCreationState::enter() {
     pGUIWindow_CurrentMenu = _uiPartyCreation.get();
 
     SetCurrentMenuID(MENU_CREATEPARTY);
+
+    return FsmAction::none();
 }
 
-void PartyCreationState::update() {
+FsmAction PartyCreationState::update() {
     pMiscTimer->tick(); // This one is used for animations.
 
+    // Not ideal to call this function, I'd prefer to manage the events directly in the state
+    // And then dispatch only the relevant info to the UI. By doing so I'll be able to get rid of
+    // the checks on the uGameState and return the transition immediately.
     CreateParty_EventLoop();
 
     if (uGameState == GAME_FINISHED) {  // if click Esc in PlayerCreation Window
         uGameState = GAME_STATE_PLAYING;
-        _goBack();
         SetCurrentMenuID(MENU_MAIN);
+        return FsmAction::transition("back");
     }
     if (uGameState == GAME_STATE_STARTING_NEW_GAME) {  // if click OK in PlayerCreation
         uGameState = GAME_STATE_PLAYING;
         SetCurrentMenuID(MENU_NEWGAME);
         _prepareParty();
-        pCurrentMapName = engine->config->gameplay.StartingMap.value();
         bFlashQuestBook = true;
-        executeTransition("partyCreated");
+        return FsmAction::transition("partyCreated");
     }
+
+    return FsmAction::none();
 }
 
 void PartyCreationState::exit() {
@@ -71,17 +77,7 @@ void PartyCreationState::exit() {
     pAudioPlayer->stopSounds();
 }
 
-void PartyCreationState::_goBack() {
-    executeTransition("back");
-}
-
 void PartyCreationState::_prepareParty() {
-    pParty->pPickedItem.uItemID = ITEM_NULL;
-
-    if (engine->config->debug.NoMargaret.value()) {
-        pParty->_questBits.set(QBIT_EMERALD_ISLAND_MARGARETH_OFF);
-    }
-
     for (Character &character : pParty->pCharacters) {
         if (character.classType == CLASS_KNIGHT)
             character.sResMagicBase = 10;
@@ -89,13 +85,19 @@ void PartyCreationState::_prepareParty() {
         // TODO(pskelton): why just CHARACTER_BUFF_RESIST_WATER?
         character.pCharacterBuffs[CHARACTER_BUFF_RESIST_WATER].Reset();
 
-        character.health = character.GetMaxHealth();
-        character.mana = character.GetMaxMana();
+        character.resetToFullHealth();
+        character.resetToFullMana();
 
         _resetLastOpenedSpellBookPage(character);
         _addRandomRing(character);
         _setupCharacterBasedOnSkills(character);
         _identifyAllStartingItems(character);
+    }
+
+    pParty->pPickedItem.uItemID = ITEM_NULL;
+
+    if (engine->config->debug.NoMargaret.value()) {
+        pParty->_questBits.set(QBIT_EMERALD_ISLAND_MARGARETH_OFF);
     }
 }
 

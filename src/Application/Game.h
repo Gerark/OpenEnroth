@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <string_view>
-#include <string>
 
 #include "Io/KeyboardInputHandler.h"
 #include "Io/Mouse.h"
@@ -23,7 +22,7 @@ class Game {
     int run();
 
  private:
-    std::string loop();
+    std::string_view loop();
     void processQueuedMessages();
     void gameLoop();
     void closeTargetedSpellWindow();
