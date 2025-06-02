@@ -21,7 +21,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">OpenEnroth<span id="projectnumber">&#160;5d86d75</span>
+   <div id="projectname">OpenEnroth<span id="projectnumber">&#160;a5e4845</span>
    </div>
   </td>
  </tr>
@@ -87,7 +87,7 @@ $(function() {
 <code>#include &quot;<a class="el" href="Engine_8h.html">Engine/Engine.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="EngineGlobals_8h.html">Engine/EngineGlobals.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="AssetsManager_8h.html">Engine/AssetsManager.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="Processor_8h.html">Engine/Events/Processor.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="Processor_8h.html">Engine/Evt/Processor.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="Camera_8h.html">Engine/Graphics/Camera.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="Collisions_8h.html">Engine/Graphics/Collisions.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="DecalBuilder_8h.html">Engine/Graphics/DecalBuilder.h</a>&quot;</code><br />
@@ -118,6 +118,8 @@ $(function() {
 <code>#include &quot;<a class="el" href="BspRenderer_8h.html">Engine/Graphics/BspRenderer.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="MapInfo_8h.html">Engine/MapInfo.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="LOD_8h.html">Engine/LOD.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="Seasons_8h.html">Engine/Seasons.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="TileEnumFunctions_8h.html">Engine/Data/TileEnumFunctions.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="GUIProgressBar_8h.html">GUI/GUIProgressBar.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="GUIWindow_8h.html">GUI/GUIWindow.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="UIRest_8h.html">GUI/UI/UIRest.h</a>&quot;</code><br />
@@ -129,6 +131,7 @@ $(function() {
 <code>#include &quot;<a class="el" href="FreeDeleter_8h.html">Utility/Memory/FreeDeleter.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="TrigLut_8h.html">Utility/Math/TrigLut.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="Exception_8h.html">Utility/Exception.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="Mouse_8h.html">Io/Mouse.h</a>&quot;</code><br />
 </div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
@@ -137,10 +140,8 @@ Classes</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:aae54606cb2222c16a5bf5a5dbb407da0"><td class="memItemLeft" align="right" valign="top">float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#aae54606cb2222c16a5bf5a5dbb407da0">ODM_GetFloorLevel</a> (const <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> &amp;pos, int unused, bool *pIsOnWater, int *faceId, int bWaterWalk)</td></tr>
-<tr class="separator:aae54606cb2222c16a5bf5a5dbb407da0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a08cb900e76aa3c43d32d3f0fc9130fd9"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#a08cb900e76aa3c43d32d3f0fc9130fd9">ODM_GetTerrainNormalAt</a> (const <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> &amp;pos, <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> *out)</td></tr>
-<tr class="separator:a08cb900e76aa3c43d32d3f0fc9130fd9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:add13f2afe5aad1a178bf47de21402d88"><td class="memItemLeft" align="right" valign="top">float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#add13f2afe5aad1a178bf47de21402d88">ODM_GetFloorLevel</a> (const <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> &amp;pos, bool *pIsOnWater, int *faceId)</td></tr>
+<tr class="separator:add13f2afe5aad1a178bf47de21402d88"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeedbd3470634fbb22ebda28d2f8006e4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#aeedbd3470634fbb22ebda28d2f8006e4">ODM_UpdateUserInputAndOther</a> ()</td></tr>
 <tr class="separator:aeedbd3470634fbb22ebda28d2f8006e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a62e44d7fd493356cb340fe1dc8fe993b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#a62e44d7fd493356cb340fe1dc8fe993b">ODM_ProcessPartyActions</a> ()</td></tr>
@@ -151,24 +152,14 @@ Functions</h2></td></tr>
 <tr class="separator:a1b27f3d68bad2b06d1caef0efe3b49ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab3cc30c01fb2e9afa8ec291e6043bf99"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#ab3cc30c01fb2e9afa8ec291e6043bf99">UpdateActors_ODM</a> ()</td></tr>
 <tr class="separator:ab3cc30c01fb2e9afa8ec291e6043bf99"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae0f32cb6e3c4479f3610a7bf817c7174"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#ae0f32cb6e3c4479f3610a7bf817c7174">loadAndPrepareODMInternal</a> (<a class="el" href="MapEnums_8h.html#a270ed629fcd100c7ea16f8c87ebb86a0">MapId</a> mapid, <a class="el" href="structODMRenderParams.html">ODMRenderParams</a> *thisa)</td></tr>
-<tr class="separator:ae0f32cb6e3c4479f3610a7bf817c7174"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af2ef3a16e28c3ce7e36bae7d2fa0fb9e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#af2ef3a16e28c3ce7e36bae7d2fa0fb9e">loadAndPrepareODM</a> (<a class="el" href="MapEnums_8h.html#a270ed629fcd100c7ea16f8c87ebb86a0">MapId</a> mapid, bool bLoading, <a class="el" href="structODMRenderParams.html">ODMRenderParams</a> *a2)</td></tr>
-<tr class="separator:af2ef3a16e28c3ce7e36bae7d2fa0fb9e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a36a5fe29bc31a4f0adaba472aee069e8"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#a36a5fe29bc31a4f0adaba472aee069e8">loadAndPrepareODMInternal</a> (<a class="el" href="MapEnums_8h.html#a270ed629fcd100c7ea16f8c87ebb86a0">MapId</a> mapid)</td></tr>
+<tr class="separator:a36a5fe29bc31a4f0adaba472aee069e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7ba6f933e419c4d830c44a8f5c1c54b7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#a7ba6f933e419c4d830c44a8f5c1c54b7">loadAndPrepareODM</a> (<a class="el" href="MapEnums_8h.html#a270ed629fcd100c7ea16f8c87ebb86a0">MapId</a> mapid, bool bLoading)</td></tr>
+<tr class="separator:a7ba6f933e419c4d830c44a8f5c1c54b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afc756df02d61405f6513cdd2468c414e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structColor.html">Color</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#afc756df02d61405f6513cdd2468c414e">GetLevelFogColor</a> ()</td></tr>
 <tr class="separator:afc756df02d61405f6513cdd2468c414e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5c9f6d6642c296d444cbc41b254575b0"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#a5c9f6d6642c296d444cbc41b254575b0">sub_47C3D7_get_fog_specular</a> (int unused, int isSky, float screen_depth)</td></tr>
 <tr class="separator:a5c9f6d6642c296d444cbc41b254575b0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1b0e417839e3b8378a18e9a3ce73d00d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="Vec_8h.html#a117a07b9e7c47a4975f94512a951bd73">Vec2i</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#a1b0e417839e3b8378a18e9a3ce73d00d">WorldPosToGrid</a> (<a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> worldPos)</td></tr>
-<tr class="separator:a1b0e417839e3b8378a18e9a3ce73d00d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acdffafa1ce95f97ed4a56f48002db29a"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#acdffafa1ce95f97ed4a56f48002db29a">GridCellToWorldPosX</a> (int a1)</td></tr>
-<tr class="separator:acdffafa1ce95f97ed4a56f48002db29a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7bfd4d4772829c50ee081de6631156ba"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#a7bfd4d4772829c50ee081de6631156ba">GridCellToWorldPosY</a> (int a1)</td></tr>
-<tr class="separator:a7bfd4d4772829c50ee081de6631156ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a84a7de63e615f96a75aaf5c95cddc3fb"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#a84a7de63e615f96a75aaf5c95cddc3fb">IsTerrainSlopeTooHigh</a> (const <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> &amp;pos)</td></tr>
-<tr class="separator:a84a7de63e615f96a75aaf5c95cddc3fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae0d6943ad2d39a01975961083048a27b"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#ae0d6943ad2d39a01975961083048a27b">GetTerrainHeightsAroundParty2</a> (const <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> &amp;pos, bool *pIsOnWater, int bFloatAboveWater)</td></tr>
-<tr class="separator:ae0d6943ad2d39a01975961083048a27b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab77e6eeddb252822cbab29444d66a41c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="Outdoor_8cpp.html#ab77e6eeddb252822cbab29444d66a41c">TeleportToStartingPoint</a> (<a class="el" href="MapEnums_8h.html#adad43ef8fbf56e2a3bc00fd08cca312f">MapStartPoint</a> point)</td></tr>
 <tr class="separator:ab77e6eeddb252822cbab29444d66a41c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -253,96 +244,8 @@ Variables</h2></td></tr>
 
 </div>
 </div>
-<a id="ae0d6943ad2d39a01975961083048a27b" name="ae0d6943ad2d39a01975961083048a27b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae0d6943ad2d39a01975961083048a27b">&#9670;&#160;</a></span>GetTerrainHeightsAroundParty2()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">int GetTerrainHeightsAroundParty2 </td>
-          <td>(</td>
-          <td class="paramtype">const <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> &amp;&#160;</td>
-          <td class="paramname"><em>pos</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">bool *&#160;</td>
-          <td class="paramname"><em>pIsOnWater</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>bFloatAboveWater</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="acdffafa1ce95f97ed4a56f48002db29a" name="acdffafa1ce95f97ed4a56f48002db29a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#acdffafa1ce95f97ed4a56f48002db29a">&#9670;&#160;</a></span>GridCellToWorldPosX()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">int GridCellToWorldPosX </td>
-          <td>(</td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>a1</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a7bfd4d4772829c50ee081de6631156ba" name="a7bfd4d4772829c50ee081de6631156ba"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7bfd4d4772829c50ee081de6631156ba">&#9670;&#160;</a></span>GridCellToWorldPosY()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">int GridCellToWorldPosY </td>
-          <td>(</td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>a1</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a84a7de63e615f96a75aaf5c95cddc3fb" name="a84a7de63e615f96a75aaf5c95cddc3fb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a84a7de63e615f96a75aaf5c95cddc3fb">&#9670;&#160;</a></span>IsTerrainSlopeTooHigh()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool IsTerrainSlopeTooHigh </td>
-          <td>(</td>
-          <td class="paramtype">const <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> &amp;&#160;</td>
-          <td class="paramname"><em>pos</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="af2ef3a16e28c3ce7e36bae7d2fa0fb9e" name="af2ef3a16e28c3ce7e36bae7d2fa0fb9e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af2ef3a16e28c3ce7e36bae7d2fa0fb9e">&#9670;&#160;</a></span>loadAndPrepareODM()</h2>
+<a id="a7ba6f933e419c4d830c44a8f5c1c54b7" name="a7ba6f933e419c4d830c44a8f5c1c54b7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7ba6f933e419c4d830c44a8f5c1c54b7">&#9670;&#160;</a></span>loadAndPrepareODM()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -357,13 +260,7 @@ Variables</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">bool&#160;</td>
-          <td class="paramname"><em>bLoading</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype"><a class="el" href="structODMRenderParams.html">ODMRenderParams</a> *&#160;</td>
-          <td class="paramname"><em>a2</em>&#160;</td>
+          <td class="paramname"><em>bLoading</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -376,8 +273,8 @@ Variables</h2></td></tr>
 
 </div>
 </div>
-<a id="ae0f32cb6e3c4479f3610a7bf817c7174" name="ae0f32cb6e3c4479f3610a7bf817c7174"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae0f32cb6e3c4479f3610a7bf817c7174">&#9670;&#160;</a></span>loadAndPrepareODMInternal()</h2>
+<a id="a36a5fe29bc31a4f0adaba472aee069e8" name="a36a5fe29bc31a4f0adaba472aee069e8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a36a5fe29bc31a4f0adaba472aee069e8">&#9670;&#160;</a></span>loadAndPrepareODMInternal()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -389,18 +286,8 @@ Variables</h2></td></tr>
           <td class="memname">static void loadAndPrepareODMInternal </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="MapEnums_8h.html#a270ed629fcd100c7ea16f8c87ebb86a0">MapId</a>&#160;</td>
-          <td class="paramname"><em>mapid</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
+          <td class="paramname"><em>mapid</em></td><td>)</td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structODMRenderParams.html">ODMRenderParams</a> *&#160;</td>
-          <td class="paramname"><em>thisa</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
         </tr>
       </table>
   </td>
@@ -413,8 +300,8 @@ Variables</h2></td></tr>
 
 </div>
 </div>
-<a id="aae54606cb2222c16a5bf5a5dbb407da0" name="aae54606cb2222c16a5bf5a5dbb407da0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aae54606cb2222c16a5bf5a5dbb407da0">&#9670;&#160;</a></span>ODM_GetFloorLevel()</h2>
+<a id="add13f2afe5aad1a178bf47de21402d88" name="add13f2afe5aad1a178bf47de21402d88"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#add13f2afe5aad1a178bf47de21402d88">&#9670;&#160;</a></span>ODM_GetFloorLevel()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -428,12 +315,6 @@ Variables</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>unused</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
           <td class="paramtype">bool *&#160;</td>
           <td class="paramname"><em>pIsOnWater</em>, </td>
         </tr>
@@ -441,41 +322,7 @@ Variables</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">int *&#160;</td>
-          <td class="paramname"><em>faceId</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">int&#160;</td>
-          <td class="paramname"><em>bWaterWalk</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a08cb900e76aa3c43d32d3f0fc9130fd9" name="a08cb900e76aa3c43d32d3f0fc9130fd9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a08cb900e76aa3c43d32d3f0fc9130fd9">&#9670;&#160;</a></span>ODM_GetTerrainNormalAt()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void ODM_GetTerrainNormalAt </td>
-          <td>(</td>
-          <td class="paramtype">const <a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> &amp;&#160;</td>
-          <td class="paramname"><em>pos</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype"><a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a> *&#160;</td>
-          <td class="paramname"><em>out</em>&#160;</td>
+          <td class="paramname"><em>faceId</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -600,24 +447,6 @@ Variables</h2></td></tr>
           <td class="memname">void UpdateActors_ODM </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a1b0e417839e3b8378a18e9a3ce73d00d" name="a1b0e417839e3b8378a18e9a3ce73d00d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1b0e417839e3b8378a18e9a3ce73d00d">&#9670;&#160;</a></span>WorldPosToGrid()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="Vec_8h.html#a117a07b9e7c47a4975f94512a951bd73">Vec2i</a> WorldPosToGrid </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="Vec_8h.html#a40b8356e33151c22cb4d1adaf2b762a8">Vec3f</a>&#160;</td>
-          <td class="paramname"><em>worldPos</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
