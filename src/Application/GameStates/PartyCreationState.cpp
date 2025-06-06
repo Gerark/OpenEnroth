@@ -100,7 +100,7 @@ void PartyCreationState::_prepareParty() {
         _identifyAllStartingItems(character);
     }
 
-    pParty->pPickedItem.uItemID = ITEM_NULL;
+    pParty->pPickedItem.itemId = ITEM_NULL;
 
     if (engine->config->debug.NoMargaret.value()) {
         pParty->_questBits.set(QBIT_EMERALD_ISLAND_MARGARETH_OFF);
@@ -108,7 +108,7 @@ void PartyCreationState::_prepareParty() {
 }
 
 void PartyCreationState::_addRandomRing(Character &character) {
-    ItemGen item;
+    Item item;
     pItemTable->generateItem(ITEM_TREASURE_LEVEL_2, RANDOM_ITEM_RING, &item);
     character.AddItem2(-1, &item);
 }
@@ -214,8 +214,8 @@ void PartyCreationState::_setupCharacterBasedOnStartingSkills(Character &charact
 }
 
 void PartyCreationState::_identifyAllStartingItems(Character &character) {
-    for (ItemGen &inventoryItem : character.pInventoryItemList) {
-        if (inventoryItem.uItemID != ITEM_NULL)
+    for (auto &inventoryItem : character.pInventoryItemList) {
+        if (inventoryItem.itemId != ITEM_NULL)
             inventoryItem.SetIdentified();
     }
 }
