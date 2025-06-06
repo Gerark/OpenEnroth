@@ -5,6 +5,7 @@
 #include <string>
 #include <type_traits>
 
+#include "Engine/Data/HouseEnums.h"
 #include "Engine/Objects/ItemEnums.h"
 #include "Engine/Objects/SpriteEnums.h"
 #include "Engine/Objects/MonsterEnums.h"
@@ -14,7 +15,6 @@
 #include "Media/Audio/SoundEnums.h"
 #include "GUI/GUIEnums.h"
 #include "GUI/GUIDialogues.h"
-#include "GUI/UI/UIHouseEnums.h"
 
 #include "Library/Config/ConfigEntry.h"
 
@@ -48,6 +48,8 @@ class CommonTapeRecorder {
     TestTape<int> totalHp();
 
     TestTape<int> totalItemCount();
+
+    TestTape<int> totalItemCount(ItemId itemId);
 
     TestTape<int> totalHirelings();
 

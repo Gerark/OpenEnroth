@@ -7,8 +7,6 @@
 
 #include "Library/Logger/Logger.h"
 
-#include "Utility/Streams/FileInputStream.h"
-
 static std::string compileErrors(int shader) {
     GLint success = 1;
     GLchar infoLog[2048];
@@ -129,5 +127,6 @@ unsigned OpenGLShader::loadShader(const Blob &source, int type, bool openGLES) {
         return 0;
     }
 
+    logger->info("Loaded shader '{}'.", source.displayPath());
     return result;
 }

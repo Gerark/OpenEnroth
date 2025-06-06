@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 
+#include "Engine/Data/HouseEnums.h"
 #include "Engine/PartyEnums.h"
 #include "Engine/Objects/NPCEnums.h"
 #include "Engine/Objects/ItemEnums.h"
@@ -14,7 +15,6 @@
 
 #include "GUI/GUIEnums.h"
 #include "GUI/GUIDialogues.h"
-#include "GUI/UI/UIHouseEnums.h"
 
 #include "Io/InputAction.h"
 #include "Io/KeyboardInputHandler.h"
@@ -23,6 +23,7 @@
 #include "Library/Color/ColorTable.h"
 #include "Library/Geometry/Size.h"
 #include "Library/Geometry/Point.h"
+#include "Library/Geometry/Rect.h"
 
 #include "Utility/IndexedArray.h"
 
@@ -37,11 +38,12 @@ class GUIWindow_House;
 class GUIWindow_Chest;
 class GUIWindow_MessageScroll;
 class GUIWindow_BranchlessDialogue;
+class GUIWindow_GameOver;
 class Character;
 struct NPCData;
 class GraphicsImage;
 class TargetedSpellUI;
-struct ItemGen;
+struct Item;
 
 class GUIWindow {
  public:
@@ -84,7 +86,7 @@ class GUIWindow {
     int uFrameX = 0;
     int uFrameY = 0;
     int uFrameWidth = 0;
-    int uFrameHeight = 0;
+    int uFrameHeight = 0; // TODO(captainurist): frameRect
     int uFrameZ = 0;
     int uFrameW = 0;
     WindowType eWindowType = WINDOW_null;
@@ -238,8 +240,16 @@ void GameUI_DrawFoodAndGold();
 void GameUI_DrawLifeManaBars();
 void GameUI_DrawHiredNPCs();
 void GameUI_DrawPortraits();
-void GameUI_DrawMinimap(unsigned int uX, unsigned int uY, unsigned int uZ,
-                        unsigned int uW, unsigned int uZoom, unsigned int bRedrawOdmMinimap);
+
+/**
+ * @param rect                          Screen rect to draw the minimap at.
+ * @param zoom                          The number of screen pixels a location map should take. Default outdoor zoom
+ *                                      level is 512, so that means that an outdoor location map would take 512x512
+ *                                      pixels on screen if not cropped. For indoor locations, this is the number of
+ *                                      screen pixels an indoor location the size of a regular outdoor location would
+ *                                      take. Note that outdoor location size is 2^16x2^16 in in-game coordinates.
+ */
+void GameUI_DrawMinimap(const Recti &rect, int zoom);
 std::string GameUI_GetMinimapHintText();
 void GameUI_DrawPartySpells();
 void GameUI_DrawTorchlightAndWizardEye();
@@ -250,13 +260,14 @@ void CharacterUI_InventoryTab_Draw(Character *player, bool a2);
 void CharacterUI_DrawPaperdoll(Character *player);
 void CharacterUI_DrawPaperdollWithRingOverlay(Character *player);
 void CharacterUI_ReleaseButtons();
+void CharacterUI_DrawPickedItemUnderlay(Vec2i offset);
 
 /**
  * @offset 0x417AD4
  */
 Color GetSkillColor(CharacterClass uPlayerClass, CharacterSkillType uPlayerSkillType, CharacterSkillMastery skill_mastery);
 
-void UI_OnMouseRightClick(int mouse_x, int mouse_y);
+void UI_OnMouseRightClick(Pointi mousePos);
 
 void GUI_UpdateWindows();
 Color GetConditionDrawColor(Condition uConditionIdx);  // idb
@@ -281,7 +292,7 @@ bool isHoldingMouseRightButton();
  * @offset 0x495461
  */
 std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *npc,
-                                ItemGen *item = nullptr, HouseId houseId = HOUSE_INVALID, ShopScreen shop_screen = SHOP_SCREEN_INVALID,
+                                Item *item = nullptr, HouseId houseId = HOUSE_INVALID, ShopScreen shop_screen = SHOP_SCREEN_INVALID,
                                 Time *a6 = nullptr);
 
 
@@ -301,8 +312,7 @@ extern GUIWindow *pGUIWindow_CurrentMenu;
 extern GUIWindow_Chest *pGUIWindow_CurrentChest;
 //extern GUIWindow *ptr_507BD0;
 extern TargetedSpellUI *pGUIWindow_CastTargetedSpell;
-extern GUIWindow *pGameOverWindow;
-extern bool bGameOverWindowCheckExit;
+extern GUIWindow_GameOver *pGameOverWindow;
 //extern GUIWindow *pGUIWindow_EscMessageWindow;
 extern GUIWindow_BranchlessDialogue *pGUIWindow_BranchlessDialogue;
 

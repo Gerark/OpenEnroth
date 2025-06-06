@@ -68,12 +68,12 @@ int _49CE9E_sub0_z(RenderVertexSoft *pVertices, unsigned int uNumVertices,
 }
 
 //----- (0049CE9E) --------------------------------------------------------
-void stru10::_49CE9E(BLVFace *pFace, RenderVertexSoft *pVertices,
+void _49CE9E(const BLVFace *pFace, RenderVertexSoft *pVertices,
                      unsigned int uNumVertices, RenderVertexSoft *pOutLimits) {
     assert(sizeof(RenderVertexSoft) == 0x30);
 
     RenderVertexSoft pLimits[64];
-    stru10::CalcPolygonLimits(pFace, pLimits);
+    CalcPolygonLimits(pFace, pLimits);
 
     if (pFace->uAttributes & FACE_XY_PLANE) {
         pOutLimits[0] = pVertices[_49CE9E_sub0_x(pVertices, uNumVertices, pLimits[0].vWorldPosition.x)];
@@ -94,7 +94,7 @@ void stru10::_49CE9E(BLVFace *pFace, RenderVertexSoft *pVertices,
 }
 
 //----- (0049D379) --------------------------------------------------------
-void stru10::CalcPolygonLimits(BLVFace *pFace, RenderVertexSoft *pOutVertices) {
+void CalcPolygonLimits(const BLVFace *pFace, RenderVertexSoft *pOutVertices) {
     FlatFace points;
     pFace->Flatten(&points, MODEL_INDOOR);
 
@@ -156,7 +156,7 @@ void stru10::CalcPolygonLimits(BLVFace *pFace, RenderVertexSoft *pOutVertices) {
 }
 
 //----- (0049C9E3) --------------------------------------------------------
-bool stru10::CalcFaceBounding(BLVFace *pFace, RenderVertexSoft *pFaceLimits,
+bool CalcFaceBounding(const BLVFace *pFace, RenderVertexSoft *pFaceLimits,
                               unsigned int uNumVertices,
                               RenderVertexSoft *pOutBounding) {
     Vec3f a1;
@@ -340,55 +340,36 @@ bool stru10::CalcFaceBounding(BLVFace *pFace, RenderVertexSoft *pFaceLimits,
     return true;
 }
 
-//----- (0049C5B0) --------------------------------------------------------
-stru10::stru10() { /*this->bDoNotDrawPortalFrustum = false;*/ }
-
-//----- (0049C5BD) --------------------------------------------------------
-stru10::~stru10() {}
-
 //----- (0049C5DA) --------------------------------------------------------
-bool stru10::CalcPortalShapePoly(BLVFace *pFace, RenderVertexSoft *pVertices,
-                     unsigned int *pNumVertices, Planef *pOutFrustum,
-                     RenderVertexSoft *pOutBounding) {
+bool CalcPortalShapePoly(const BLVFace *pFace, RenderVertexSoft *pVertices,
+                     unsigned int *pNumVertices, Planef *pOutFrustum, RenderVertexSoft *pOutBounding) {
     // calc poly limits
     RenderVertexSoft pLimits[4];
     _49CE9E(pFace, pVertices, *pNumVertices, pLimits);
 
-    if (CalcFaceBounding(pFace, pLimits, 4, pOutBounding)) {
-        pCamera3D->ViewTransform(pOutBounding, 4);
-        pCamera3D->Project(pOutBounding, 4);
-        RenderVertexSoft temp[4];
-        memcpy(temp, pOutBounding, sizeof(RenderVertexSoft) * 4);
-
-        // make sure frustum planes will be on correct side
-        if (pOutBounding[0].vWorldViewProjX > pOutBounding[3].vWorldViewProjX) {
-            pOutBounding[0] = temp[3];
-            pOutBounding[2] = temp[1];
-            pOutBounding[3] = temp[0];
-            pOutBounding[1] = temp[2];
-        }
-
-        // calculate the new frustum for this portal
-        bool test = CalcPortalFrustum(pOutBounding, pOutFrustum);
-
-        // if normal in z - portals dont work out so use camera
-        if (pFace->facePlane.normal.z == 1.0 || pFace->facePlane.normal.z == -1.0) {
-            for (int i = 0; i < 4; i++) {
-                pOutFrustum[i].normal.x = pCamera3D->FrustumPlanes[i].x;
-                pOutFrustum[i].normal.y = pCamera3D->FrustumPlanes[i].y;
-                pOutFrustum[i].normal.z = pCamera3D->FrustumPlanes[i].z;
-                pOutFrustum[i].dist = -pCamera3D->FrustumPlanes[i].w;
-            }
-        }
-
-        return test;
+    if (!CalcFaceBounding(pFace, pLimits, 4, pOutBounding)) {
+        return false;
     }
 
-    return false;
+    pCamera3D->ViewTransform(pOutBounding, 4);
+    pCamera3D->Project(pOutBounding, 4);
+
+    // make sure frustum planes will be on correct side
+    if (pOutBounding[0].vWorldViewProjX > pOutBounding[3].vWorldViewProjX) {
+        RenderVertexSoft temp[4];
+        memcpy(temp, pOutBounding, sizeof(RenderVertexSoft) * 4);
+        pOutBounding[0] = temp[3];
+        pOutBounding[2] = temp[1];
+        pOutBounding[3] = temp[0];
+        pOutBounding[1] = temp[2];
+    }
+
+    // calculate the new frustum for this portal
+    return CalcPortalFrustum(pOutBounding, pOutFrustum);
 }
 
 //----- (0049C720) --------------------------------------------------------
-bool stru10::CalcPortalFrustum(RenderVertexSoft *pFaceBounding, Planef *pPortalDataFrustum) {
+bool CalcPortalFrustum(RenderVertexSoft *pFaceBounding, Planef *pPortalDataFrustum) {
     Vec3f pRayStart;
     pRayStart.x = pCamera3D->vCameraPos.x;
     pRayStart.y = pCamera3D->vCameraPos.y;
@@ -405,7 +386,7 @@ bool stru10::CalcPortalFrustum(RenderVertexSoft *pFaceBounding, Planef *pPortalD
 }
 
 //----- (0049C7C5) --------------------------------------------------------
-bool stru10::CalcPortalFrustumPlane(RenderVertexSoft *pFaceBounding1,
+bool CalcPortalFrustumPlane(RenderVertexSoft *pFaceBounding1,
                                     RenderVertexSoft *pFaceBounding2,
                                     Vec3f *pRayStart,
                                     Planef *pPortalDataFrustum) {

@@ -8,6 +8,7 @@
 #include "GUI/GUIButton.h"
 #include "GUI/GUIMessageQueue.h"
 
+#include "Engine/Data/HouseEnumFunctions.h"
 #include "Engine/AssetsManager.h"
 #include "Engine/Localization.h"
 #include "Engine/PriceCalculator.h"
@@ -25,12 +26,12 @@ void GUIWindow_Tavern::mainDialogue() {
         return;
     }
 
-    int pPriceRoom = PriceCalculator::tavernRoomCostForPlayer(&pParty->activeCharacter(), buildingTable[houseId()]);
-    int pPriceFood = PriceCalculator::tavernFoodCostForPlayer(&pParty->activeCharacter(), buildingTable[houseId()]);
-    int foodNum = buildingTable[houseId()].fPriceMultiplier;
+    int pPriceRoom = PriceCalculator::tavernRoomCostForPlayer(&pParty->activeCharacter(), houseTable[houseId()]);
+    int pPriceFood = PriceCalculator::tavernFoodCostForPlayer(&pParty->activeCharacter(), houseTable[houseId()]);
+    int foodNum = houseTable[houseId()].fPriceMultiplier;
 
-    std::vector<std::string> optionsText = {localization->FormatString(LSTR_FMT_RENT_ROOM_FOR_D_GOLD, pPriceRoom),
-                                            localization->FormatString(LSTR_FMT_BUY_D_FOOD_FOR_D_GOLD, foodNum, pPriceFood),
+    std::vector<std::string> optionsText = {localization->FormatString(LSTR_RENT_ROOM_FOR_D_GOLD, pPriceRoom),
+                                            localization->FormatString(LSTR_FILL_PACKS_TO_D_DAYS_FOR_D_GOLD, foodNum, pPriceFood),
                                             localization->GetString(LSTR_LEARN_SKILLS)};
 
     if (houseId() != HOUSE_TAVERN_EMERALD_ISLAND) {
@@ -45,8 +46,9 @@ void GUIWindow_Tavern::arcomageMainDialogue() {
         return;
     }
 
-    std::vector<std::string> optionsText = {localization->GetString(LSTR_RULES), localization->GetString(LSTR_VICTORY_CONDITIONS),
-                                            pParty->hasItem(ITEM_QUEST_ARCOMAGE_DECK) ? localization->GetString(LSTR_PLAY) : ""};
+    std::vector<std::string> optionsText = {localization->GetString(LSTR_RULES), localization->GetString(LSTR_VICTORY_CONDITIONS)};
+    if (pParty->hasItem(ITEM_QUEST_ARCOMAGE_DECK))
+        optionsText.push_back(localization->GetString(LSTR_PLAY));
 
     drawOptions(optionsText, colorTable.PaleCanary);
 }
@@ -116,7 +118,7 @@ void GUIWindow_Tavern::arcomageResultDialogue() {
 }
 
 void GUIWindow_Tavern::restDialogue() {
-    int pPriceRoom = PriceCalculator::tavernRoomCostForPlayer(&pParty->activeCharacter(), buildingTable[houseId()]);
+    int pPriceRoom = PriceCalculator::tavernRoomCostForPlayer(&pParty->activeCharacter(), houseTable[houseId()]);
 
     if (pParty->GetGold() >= pPriceRoom) {
         pParty->TakeGold(pPriceRoom);
@@ -131,16 +133,16 @@ void GUIWindow_Tavern::restDialogue() {
         window_SpeakInHouse = 0;
         return;
     }
-    engine->_statusBar->setEvent(LSTR_NOT_ENOUGH_GOLD);
+    engine->_statusBar->setEvent(LSTR_YOU_DONT_HAVE_ENOUGH_GOLD);
     playHouseSound(houseId(), HOUSE_SOUND_TAVERN_NOT_ENOUGH_GOLD);
     engine->_messageQueue->addMessageCurrentFrame(UIMSG_Escape, 1, 0);
 }
 
 void GUIWindow_Tavern::buyFoodDialogue() {
-    int pPriceFood = PriceCalculator::tavernFoodCostForPlayer(&pParty->activeCharacter(), buildingTable[houseId()]);
+    int pPriceFood = PriceCalculator::tavernFoodCostForPlayer(&pParty->activeCharacter(), houseTable[houseId()]);
 
-    if ((double)pParty->GetFood() >= buildingTable[houseId()].fPriceMultiplier) {
-        engine->_statusBar->setEvent(LSTR_RATIONS_FULL);
+    if ((double)pParty->GetFood() >= houseTable[houseId()].fPriceMultiplier) {
+        engine->_statusBar->setEvent(LSTR_YOUR_PACKS_ARE_ALREADY_FULL);
         if (pParty->hasActiveCharacter()) {
             pParty->activeCharacter().playReaction(SPEECH_PACKS_FULL);
         }
@@ -149,12 +151,12 @@ void GUIWindow_Tavern::buyFoodDialogue() {
     }
     if (pParty->GetGold() >= pPriceFood) {
         pParty->TakeGold(pPriceFood);
-        pParty->SetFood(buildingTable[houseId()].fPriceMultiplier);
+        pParty->SetFood(houseTable[houseId()].fPriceMultiplier);
         playHouseSound(houseId(), HOUSE_SOUND_TAVERN_BUY_FOOD);
         engine->_messageQueue->addMessageCurrentFrame(UIMSG_Escape, 1, 0);
         return;
     }
-    engine->_statusBar->setEvent(LSTR_NOT_ENOUGH_GOLD);
+    engine->_statusBar->setEvent(LSTR_YOU_DONT_HAVE_ENOUGH_GOLD);
     playHouseSound(houseId(), HOUSE_SOUND_TAVERN_NOT_ENOUGH_GOLD);
     engine->_messageQueue->addMessageCurrentFrame(UIMSG_Escape, 1, 0);
 }

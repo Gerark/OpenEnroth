@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Application/GameStarterOptions.h"
+#include "Application/Startup/GameStarterOptions.h"
 
 struct CodeGenOptions : GameStarterOptions {
     enum class Subcommand {
@@ -14,6 +14,8 @@ struct CodeGenOptions : GameStarterOptions {
         SUBCOMMAND_BOUNTY_HUNT,
         SUBCOMMAND_MUSIC,
         SUBCOMMAND_DECORATIONS,
+        SUBCOMMAND_SPEECH_PORTRAITS,
+        SUBCOMMAND_LSTR_ID,
     };
     using enum Subcommand;
 

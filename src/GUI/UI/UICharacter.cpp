@@ -10,6 +10,7 @@
 #include "Engine/AssetsManager.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineGlobals.h"
+#include "Engine/Objects/Character.h"
 #include "Engine/Objects/CharacterEnumFunctions.h"
 #include "Engine/Graphics/Renderer/Renderer.h"
 #include "Engine/Graphics/Viewport.h"
@@ -21,6 +22,7 @@
 #include "Engine/Tables/ItemTable.h"
 #include "Engine/Tables/AwardTable.h"
 #include "Engine/Spells/Spells.h"
+#include "Engine/Data/AwardEnums.h"
 
 #include "GUI/GUIWindow.h"
 #include "GUI/GUIButton.h"
@@ -572,7 +574,7 @@ GUIWindow_CharacterRecord::GUIWindow_CharacterRecord(int uActiveCharacter, Scree
     pCharacterScreen_ExitBtn = CreateButton({pViewport->uViewportTL_X + 371, pViewport->uViewportTL_Y + 308},
                                             paperdoll_dbrds[1]->size(), 1, 0,
                                             UIMSG_ClickExitCharacterWindowBtn, 0, Io::InputAction::Invalid,
-                                            localization->GetString(LSTR_DIALOGUE_EXIT),
+                                            localization->GetString(LSTR_EXIT_DIALOGUE),
                                             {{paperdoll_dbrds[2], paperdoll_dbrds[1]}});
     CreateButton({0, 0}, {476, 345}, 1, 122, UIMSG_InventoryLeftClick, 0);
     pCharacterScreen_DetalizBtn = CreateButton({600, 300}, {30, 30}, 1, 0,
@@ -748,7 +750,7 @@ TargetedSpellUI *CastSpellInfo::GetCastSpellInInventoryWindow() {
     current_screen_type = SCREEN_CASTING;
     TargetedSpellUI *CS_inventory_window = new GUIWindow_Inventory_CastSpell({0, 0}, render->GetRenderDimensions(), this, "");
     pCharacterScreen_ExitBtn = CS_inventory_window->CreateButton({394, 318}, {75, 33}, 1, 0,
-        UIMSG_ClickExitCharacterWindowBtn, 0, Io::InputAction::Invalid, localization->GetString(LSTR_DIALOGUE_EXIT),
+        UIMSG_ClickExitCharacterWindowBtn, 0, Io::InputAction::Invalid, localization->GetString(LSTR_EXIT_DIALOGUE),
         {{paperdoll_dbrds[2], paperdoll_dbrds[1]}});
     CS_inventory_window->CreateButton({0, 0}, {0x1DCu, 0x159u}, 1, 122, UIMSG_InventoryLeftClick, 0);
     pCharacterScreen_DollBtn = CS_inventory_window->CreateButton({0x1DCu, 0}, {0xA4u, 0x159u}, 1, 0, UIMSG_ClickPaperdoll, 0);
@@ -764,7 +766,7 @@ TargetedSpellUI *CastSpellInfo::GetCastSpellInInventoryWindow() {
 static int drawSkillTable(Character *player, int x, int y, const std::initializer_list<CharacterSkillType> skill_list,
                           int right_margin, std::string_view skill_group_name) {
     int y_offset = y;
-    Pointi pt = mouse->GetCursorPos();
+    Pointi pt = mouse->position();
 
     auto str = fmt::format("{}\r{:03}{}", skill_group_name, right_margin, localization->GetString(LSTR_LEVEL));
     pGUIWindow_CurrentMenu->DrawText(assets->pFontArrus.get(), {x, y}, ui_character_header_text_color, str);
@@ -998,7 +1000,7 @@ void CharacterUI_DrawPaperdoll(Character *player) {
     int index;
     int item_X;
     int item_Y;
-    ItemGen *item;
+    Item *item;
 
     int IsDwarf;
     int pBodyComplection;
@@ -1015,12 +1017,13 @@ void CharacterUI_DrawPaperdoll(Character *player) {
     render->ResetUIClipRect();
     render->DrawTextureNew(467 / 640.0f, 0, ui_character_inventory_paperdoll_background);
 
-    ItemGen *itemMainHand = player->GetMainHandItem();
-    ItemGen *itemOffHand = player->GetOffHandItem();
-    bool bTwoHandedGrip = itemMainHand && (itemMainHand->GetItemEquipType() == ITEM_TYPE_TWO_HANDED || itemMainHand->GetPlayerSkillType() == CHARACTER_SKILL_SPEAR && !itemOffHand);
+    Item *itemMainHand = player->GetMainHandItem();
+    Item *itemOffHand = player->GetOffHandItem();
+    bool bTwoHandedGrip = itemMainHand && (itemMainHand->type() == ITEM_TYPE_TWO_HANDED || itemMainHand->GetPlayerSkillType() == CHARACTER_SKILL_SPEAR && !itemOffHand);
 
     // Aqua-Lung
     if (player->hasUnderwaterSuitEquipped()) {
+        // TODO(captainurist): need to also z-draw arms and wrists.
         render->DrawTextureNew(pPaperdoll_BodyX / 640.0f, pPaperdoll_BodyY / 480.0f, paperdoll_dbods[uPlayerID]);
         if (!bRingsShownInCharScreen)
             render->ZDrawTextureAlpha(pPaperdoll_BodyX / 640.0f, pPaperdoll_BodyY / 480.0f, paperdoll_dbods[uPlayerID], player->pEquipment[ITEM_SLOT_ARMOUR]);
@@ -1036,11 +1039,11 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // main hand's item
         item = itemMainHand;
         if (item) {
-            item_X = pPaperdoll_BodyX + paperdoll_Weapon[pBodyComplection][1][0] - pItemTable->pItems[item->uItemID].uEquipX;
-            item_Y = pPaperdoll_BodyY + paperdoll_Weapon[pBodyComplection][1][1] - pItemTable->pItems[item->uItemID].uEquipY;
+            item_X = pPaperdoll_BodyX + paperdoll_Weapon[pBodyComplection][1][0] - pItemTable->items[item->itemId].paperdollAnchorOffset.x;
+            item_Y = pPaperdoll_BodyY + paperdoll_Weapon[pBodyComplection][1][1] - pItemTable->items[item->itemId].paperdollAnchorOffset.y;
 
             GraphicsImage *texture = nullptr;
-            if (item->uItemID == ITEM_BLASTER)
+            if (item->itemId == ITEM_BLASTER)
                 texture = assets->getImage_Alpha("item64v1");
 
             CharacterUI_DrawItem(item_X, item_Y, item, player->pEquipment[ITEM_SLOT_MAIN_HAND], texture, !bRingsShownInCharScreen);
@@ -1049,8 +1052,8 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // bow
         item = player->GetBowItem();
         if (item) {
-            item_X = pPaperdoll_BodyX + paperdoll_Weapon[pBodyComplection][2][0] - pItemTable->pItems[item->uItemID].uEquipX;
-            item_Y = pPaperdoll_BodyY + paperdoll_Weapon[pBodyComplection][2][1] - pItemTable->pItems[item->uItemID].uEquipY;
+            item_X = pPaperdoll_BodyX + paperdoll_Weapon[pBodyComplection][2][0] - pItemTable->items[item->itemId].paperdollAnchorOffset.x;
+            item_Y = pPaperdoll_BodyY + paperdoll_Weapon[pBodyComplection][2][1] - pItemTable->items[item->itemId].paperdollAnchorOffset.y;
 
             CharacterUI_DrawItem(item_X, item_Y, item, player->pEquipment[ITEM_SLOT_BOW], nullptr, !bRingsShownInCharScreen);
         }
@@ -1058,7 +1061,7 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // cloak
         item = player->GetCloakItem();
         if (item) {
-            index = valueOr(paperdoll_cloak_indexByType, item->uItemID, -1);
+            index = valueOr(paperdoll_cloak_indexByType, item->itemId, -1);
             if (index != -1) {
                 item_X = pPaperdoll_BodyX + paperdoll_Cloak[pBodyComplection][index][0];
                 item_Y = pPaperdoll_BodyY + paperdoll_Cloak[pBodyComplection][index][1];
@@ -1074,7 +1077,7 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // armor
         item = player->GetArmorItem();
         if (item) {
-            index = valueOr(paperdoll_armor_indexByType, item->uItemID, -1);
+            index = valueOr(paperdoll_armor_indexByType, item->itemId, -1);
             if (index != -1) {
                 item_X = pPaperdoll_BodyX + paperdoll_Armor_Coord[pBodyComplection][index][0];
                 item_Y = pPaperdoll_BodyY + paperdoll_Armor_Coord[pBodyComplection][index][1];
@@ -1087,13 +1090,13 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // boots
         item = player->GetBootItem();
         if (item) {
-            index = valueOr(paperdoll_boots_indexByType, item->uItemID, -1);
+            index = valueOr(paperdoll_boots_indexByType, item->itemId, -1);
             if (index != -1) {
                 item_X = pPaperdoll_BodyX + paperdoll_Boot[pBodyComplection][index][0];
                 item_Y = pPaperdoll_BodyY + paperdoll_Boot[pBodyComplection][index][1];
 
                 GraphicsImage *texture = nullptr;
-                if (item->uItemID == ITEM_ARTIFACT_HERMES_SANDALS) {
+                if (item->itemId == ITEM_ARTIFACT_HERMES_SANDALS) {
                     texture = paperdoll_flying_feet[player->uCurrentFace];
                 } else {
                     texture = paperdoll_boots_texture[pBodyComplection][index];
@@ -1117,7 +1120,7 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // belt
         item = player->GetBeltItem();
         if (item) {
-            index = valueOr(paperdoll_belt_indexByType, item->uItemID, -1);
+            index = valueOr(paperdoll_belt_indexByType, item->itemId, -1);
             if (index != -1) {
                 item_X = pPaperdoll_BodyX + paperdoll_Belt[pBodyComplection][index][0];
                 item_Y = pPaperdoll_BodyY + paperdoll_Belt[pBodyComplection][index][1];
@@ -1134,7 +1137,7 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // armor's shoulders
         item = player->GetArmorItem();
         if (item) {
-            index = valueOr(paperdoll_armor_indexByType, item->uItemID, -1);
+            index = valueOr(paperdoll_armor_indexByType, item->itemId, -1);
             if (index != -1) {
                 GraphicsImage *texture = nullptr;
                 // Some armors doesn't have sleeves so use normal one for two-handed or none if it also unavailable
@@ -1158,7 +1161,7 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // cloak's collar
         item = player->GetCloakItem();
         if (item) {
-            index = valueOr(paperdoll_cloak_indexByType, item->uItemID, -1);
+            index = valueOr(paperdoll_cloak_indexByType, item->itemId, -1);
             if (index != -1) {
                 // leather cloak has no collar
                 if (paperdoll_CloakCollar[pBodyComplection][index][0]) {
@@ -1182,13 +1185,13 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // helm
         item = player->GetHelmItem();
         if (item) {
-            index = valueOr(paperdoll_helm_indexByType, item->uItemID, -1);
+            index = valueOr(paperdoll_helm_indexByType, item->itemId, -1);
             if (index != -1) {
                 item_X = pPaperdoll_BodyX + paperdoll_Helm[pBodyComplection][index][0];
                 item_Y = pPaperdoll_BodyY + paperdoll_Helm[pBodyComplection][index][1];
 
                 GraphicsImage *texture = nullptr;
-                if (IsDwarf != 1 || item->uItemID != ITEM_PHYNAXIAN_HELM)
+                if (IsDwarf != 1 || item->itemId != ITEM_PHYNAXIAN_HELM)
                     texture = paperdoll_helm_texture[std::to_underlying(player->GetSexByVoice())][index];
                 else
                     texture = paperdoll_dbrds[11];
@@ -1200,11 +1203,11 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // main hand's item
         item = itemMainHand;
         if (item) {
-            item_X = pPaperdoll_BodyX + paperdoll_Weapon[pBodyComplection][1][0] - pItemTable->pItems[item->uItemID].uEquipX;
-            item_Y = pPaperdoll_BodyY + paperdoll_Weapon[pBodyComplection][1][1] - pItemTable->pItems[item->uItemID].uEquipY;
+            item_X = pPaperdoll_BodyX + paperdoll_Weapon[pBodyComplection][1][0] - pItemTable->items[item->itemId].paperdollAnchorOffset.x;
+            item_Y = pPaperdoll_BodyY + paperdoll_Weapon[pBodyComplection][1][1] - pItemTable->items[item->itemId].paperdollAnchorOffset.y;
 
             GraphicsImage *texture = nullptr;
-            if (item->uItemID == ITEM_BLASTER)
+            if (item->itemId == ITEM_BLASTER)
                 texture = assets->getImage_Alpha("item64v1");
 
             CharacterUI_DrawItem(item_X, item_Y, item, player->pEquipment[ITEM_SLOT_MAIN_HAND], texture, !bRingsShownInCharScreen);
@@ -1213,8 +1216,8 @@ void CharacterUI_DrawPaperdoll(Character *player) {
         // offhand's item
         item = itemOffHand;
         if (item) {
-            item_X = pPaperdoll_BodyX + paperdoll_Weapon[pBodyComplection][0][0] - pItemTable->pItems[item->uItemID].uEquipX;
-            item_Y = pPaperdoll_BodyY + paperdoll_Weapon[pBodyComplection][0][1] - pItemTable->pItems[item->uItemID].uEquipY;
+            item_X = pPaperdoll_BodyX + paperdoll_Weapon[pBodyComplection][0][0] - pItemTable->items[item->itemId].paperdollAnchorOffset.x;
+            item_Y = pPaperdoll_BodyY + paperdoll_Weapon[pBodyComplection][0][1] - pItemTable->items[item->itemId].paperdollAnchorOffset.y;
 
             /*
              * MM6 artifacts.
@@ -1222,7 +1225,7 @@ void CharacterUI_DrawPaperdoll(Character *player) {
              * Also MM6 doesn't have variable size paperdoll's so cordinates need to account pPaperdoll_BodyX/Y.
              */
             if (item->GetPlayerSkillType() == CHARACTER_SKILL_DAGGER || item->GetPlayerSkillType() == CHARACTER_SKILL_SWORD) {
-                switch (item->uItemID) {
+                switch (item->itemId) {
                     case ITEM_SPELLBOOK_TORCH_LIGHT: // Mordred
                         item_X = 596;
                         item_Y = 86;
@@ -1283,9 +1286,13 @@ void CharacterUI_InventoryTab_Draw(Character *player, bool Cover_Strip) {
         render->DrawTextureNew(8 / 640.0f, 305 / 480.0f, ui_character_inventory_background_strip);
     }
 
+    render->SetUIClipRect({ 14, 17, 32 * 14, 32 * 9 });
+    CharacterUI_DrawPickedItemUnderlay({ 14, 17 });
+    render->ResetUIClipRect();
+
     for (unsigned i = 0; i < 126; ++i) {
         if (player->pInventoryMatrix[i] <= 0) continue;
-        if (player->pInventoryItemList[player->pInventoryMatrix[i] - 1].uItemID == ITEM_NULL)
+        if (player->pInventoryItemList[player->pInventoryMatrix[i] - 1].itemId == ITEM_NULL)
             continue;
         unsigned int uCellY = 32 * (i / 14) + 17;
         unsigned int uCellX = 32 * (i % 14) + 14;
@@ -1298,7 +1305,18 @@ void CharacterUI_InventoryTab_Draw(Character *player, bool Cover_Strip) {
     }
 }
 
-static void CharacterUI_DrawItem(int x, int y, ItemGen *item, int id, GraphicsImage *item_texture, bool doZDraw) {
+void CharacterUI_DrawPickedItemUnderlay(Vec2i offset) {
+    if (pParty->pPickedItem.itemId != ITEM_NULL) {
+        // draw shadow of position
+        Pointi mousePos = mouse->position();
+        Pointi inventoryPos = mapToInventoryGrid(mousePos + mouse->pickedItemOffset, offset);
+        Sizei itemSize = pParty->pPickedItem.inventorySize();
+
+        render->FillRectFast(inventoryPos.x * 32 + offset.x, inventoryPos.y * 32 + offset.y, itemSize.w * 32, itemSize.h * 32, Color(96, 96, 96, 128));
+    }
+}
+
+static void CharacterUI_DrawItem(int x, int y, Item *item, int id, GraphicsImage *item_texture, bool doZDraw) {
     if (!item_texture)
         item_texture = assets->getImage_Alpha(item->GetIconName());
 
@@ -1508,7 +1526,7 @@ void GUIWindow_CharacterRecord::CharacterUI_StatsTab_Draw(Character *player) {
     pGUIWindow_CurrentMenu->DrawText(assets->pFontArrus.get(), {26, 18}, colorTable.White, str1);
 
     // Left column
-    auto formatLeftCol = [] (int lstr, int current, int max) {
+    auto formatLeftCol = [] (LstrId lstr, int current, int max) {
         Color color16 = UI_GetHealthManaAndOtherQualitiesStringColor(current, max);
         if (max < 1000) {
             return fmt::format("{}{::}\r424{}\f00000 /\t185{}\n", localization->GetString(lstr), color16.tag(), current, max);
@@ -1573,7 +1591,7 @@ void GUIWindow_CharacterRecord::CharacterUI_StatsTab_Draw(Character *player) {
     pGUIWindow_CurrentMenu->DrawTextInRect(assets->pFontArrus.get(), {26, pY}, colorTable.White, str13, 226, 0);
 
     // Right column
-    auto formatRightCol = [] (int lstr, int current, int max, bool immune = false) {
+    auto formatRightCol = [] (LstrId lstr, int current, int max, bool immune = false) {
         Color color16 = UI_GetHealthManaAndOtherQualitiesStringColor(current, max);
         if (immune) {
             return fmt::format("{}{::}\r180{}\n", localization->GetString(lstr), color16.tag(), localization->GetString(LSTR_IMMUNE));
@@ -1619,35 +1637,35 @@ void GUIWindow_CharacterRecord::CharacterUI_StatsTab_Draw(Character *player) {
 
     pY += 2 * assets->pFontArrus->GetHeight() - 4;
     pGUIWindow_CurrentMenu->DrawText(assets->pFontArrus.get(), {266, pY}, colorTable.White,
-                                     formatRightCol(LSTR_FIRE, player->GetActualResistance(CHARACTER_ATTRIBUTE_RESIST_FIRE),
-                                                    player->GetBaseResistance(CHARACTER_ATTRIBUTE_RESIST_FIRE)));
+                                     formatRightCol(LSTR_FIRE, player->GetActualResistance(ATTRIBUTE_RESIST_FIRE),
+                                                    player->GetBaseResistance(ATTRIBUTE_RESIST_FIRE)));
 
     pY += assets->pFontArrus->GetHeight() - 2;
     pGUIWindow_CurrentMenu->DrawText(assets->pFontArrus.get(), {266, pY}, colorTable.White,
-                                     formatRightCol(LSTR_AIR, player->GetActualResistance(CHARACTER_ATTRIBUTE_RESIST_AIR),
-                                                    player->GetBaseResistance(CHARACTER_ATTRIBUTE_RESIST_AIR)));
+                                     formatRightCol(LSTR_AIR, player->GetActualResistance(ATTRIBUTE_RESIST_AIR),
+                                                    player->GetBaseResistance(ATTRIBUTE_RESIST_AIR)));
 
     pY += assets->pFontArrus->GetHeight() - 2;
     pGUIWindow_CurrentMenu->DrawText(assets->pFontArrus.get(), {266, pY}, colorTable.White,
-                                     formatRightCol(LSTR_WATER, player->GetActualResistance(CHARACTER_ATTRIBUTE_RESIST_WATER),
-                                                    player->GetBaseResistance(CHARACTER_ATTRIBUTE_RESIST_WATER)));
+                                     formatRightCol(LSTR_WATER, player->GetActualResistance(ATTRIBUTE_RESIST_WATER),
+                                                    player->GetBaseResistance(ATTRIBUTE_RESIST_WATER)));
 
     pY += assets->pFontArrus->GetHeight() - 2;
     pGUIWindow_CurrentMenu->DrawText(assets->pFontArrus.get(), {266, pY}, colorTable.White,
-                                     formatRightCol(LSTR_EARTH, player->GetActualResistance(CHARACTER_ATTRIBUTE_RESIST_EARTH),
-                                                    player->GetBaseResistance(CHARACTER_ATTRIBUTE_RESIST_EARTH)));
+                                     formatRightCol(LSTR_EARTH, player->GetActualResistance(ATTRIBUTE_RESIST_EARTH),
+                                                    player->GetBaseResistance(ATTRIBUTE_RESIST_EARTH)));
 
     pY += assets->pFontArrus->GetHeight() - 2;
-    bool immuneToMind = player->classType == CLASS_LICH && player->GetBaseResistance(CHARACTER_ATTRIBUTE_RESIST_MIND) == 200;
+    bool immuneToMind = player->classType == CLASS_LICH && player->GetBaseResistance(ATTRIBUTE_RESIST_MIND) == 200;
     pGUIWindow_CurrentMenu->DrawText(assets->pFontArrus.get(), {266, pY}, colorTable.White,
-                                     formatRightCol(LSTR_MIND, player->GetActualResistance(CHARACTER_ATTRIBUTE_RESIST_MIND),
-                                                    player->GetBaseResistance(CHARACTER_ATTRIBUTE_RESIST_MIND), immuneToMind));
+                                     formatRightCol(LSTR_MIND, player->GetActualResistance(ATTRIBUTE_RESIST_MIND),
+                                                    player->GetBaseResistance(ATTRIBUTE_RESIST_MIND), immuneToMind));
 
     pY += assets->pFontArrus->GetHeight() - 2;
-    bool immuneToBody = player->classType == CLASS_LICH && player->GetBaseResistance(CHARACTER_ATTRIBUTE_RESIST_BODY) == 200;
+    bool immuneToBody = player->classType == CLASS_LICH && player->GetBaseResistance(ATTRIBUTE_RESIST_BODY) == 200;
     pGUIWindow_CurrentMenu->DrawText(assets->pFontArrus.get(), {266, pY}, colorTable.White,
-                                     formatRightCol(LSTR_BODY, player->GetActualResistance(CHARACTER_ATTRIBUTE_RESIST_BODY),
-                                                    player->GetBaseResistance(CHARACTER_ATTRIBUTE_RESIST_BODY), immuneToBody));
+                                     formatRightCol(LSTR_BODY, player->GetActualResistance(ATTRIBUTE_RESIST_BODY),
+                                                    player->GetBaseResistance(ATTRIBUTE_RESIST_BODY), immuneToBody));
 }
 
 void GUIWindow_CharacterRecord::fillAwardsData() {
@@ -1728,8 +1746,8 @@ void WetsuitOff(int uPlayerID) {
 
 //----- (00468F8A) --------------------------------------------------------
 void OnPaperdollLeftClick() {
-    int mousex = mouse->uMouseX;
-    int mousey = mouse->uMouseY;
+    int mousex = mouse->position().x;
+    int mousey = mouse->position().y;
 
     static int RingsX[6] = {0x1EA, 0x21A, 0x248, 0x1EA, 0x21A, 0x248};
     static int RingsY[6] = {0x0CA, 0x0CA, 0x0CA, 0x0FA, 0x0FA, 0x0FA};
@@ -1743,7 +1761,7 @@ void OnPaperdollLeftClick() {
     int slot = 32;
     ItemSlot pos = ITEM_SLOT_INVALID;
 
-    ItemGen *pitem = NULL;  // condesnse with this??
+    Item *pitem = NULL;  // condesnse with this??
                             // pitem.Reset();
 
     // uint16_t v5; // ax@7
@@ -1764,19 +1782,19 @@ void OnPaperdollLeftClick() {
     CastSpellInfo *pSpellInfo;
 
     int twohandedequip = 0;
-    ItemGen _this;  // [sp+Ch] [bp-40h]@1
+    Item _this;  // [sp+Ch] [bp-40h]@1
     _this.Reset();
     int mainhandequip = pParty->activeCharacter().pEquipment[ITEM_SLOT_MAIN_HAND];
     unsigned int shieldequip = pParty->activeCharacter().pEquipment[ITEM_SLOT_OFF_HAND];
 
-    if (mainhandequip && pParty->activeCharacter().pInventoryItemList[mainhandequip - 1].GetItemEquipType() == ITEM_TYPE_TWO_HANDED) {
+    if (mainhandequip && pParty->activeCharacter().pInventoryItemList[mainhandequip - 1].type() == ITEM_TYPE_TWO_HANDED) {
         twohandedequip = mainhandequip;
     }
 
-    ItemId pickeditem = pParty->pPickedItem.uItemID;
+    ItemId pickeditem = pParty->pPickedItem.itemId;
 
-    if (pParty->pPickedItem.uItemID != ITEM_NULL) {  // hold item
-        pEquipType = pParty->pPickedItem.GetItemEquipType();
+    if (pParty->pPickedItem.itemId != ITEM_NULL) {  // hold item
+        pEquipType = pParty->pPickedItem.type();
         pSkillType = pParty->pPickedItem.GetPlayerSkillType();
 
         if (pSkillType == CHARACTER_SKILL_SPEAR) {
@@ -1788,7 +1806,7 @@ void OnPaperdollLeftClick() {
                     return;
                 }
 
-                pickeditem = pParty->pPickedItem.uItemID;
+                pickeditem = pParty->pPickedItem.itemId;
             }
         } else {
             if ((pSkillType == CHARACTER_SKILL_SHIELD || pSkillType == CHARACTER_SKILL_SWORD || pSkillType == CHARACTER_SKILL_DAGGER) && mainhandequip &&
@@ -1806,7 +1824,7 @@ void OnPaperdollLeftClick() {
             return;
         }
 
-        if (pParty->pPickedItem.uItemID == ITEM_QUEST_WETSUIT) {  // wetsuit check is done above
+        if (pParty->pPickedItem.itemId == ITEM_QUEST_WETSUIT) {  // wetsuit check is done above
             pParty->activeCharacter().EquipBody(ITEM_TYPE_ARMOUR);
             WetsuitOn(pParty->activeCharacterIndex());
             return;
@@ -1835,7 +1853,7 @@ void OnPaperdollLeftClick() {
 
                 pParty->activeCharacter().EquipBody(pEquipType);  // equips item
 
-                if (pParty->pPickedItem.uItemID == ITEM_QUEST_WETSUIT) // just taken wetsuit off
+                if (pParty->pPickedItem.itemId == ITEM_QUEST_WETSUIT) // just taken wetsuit off
                     WetsuitOff(pParty->activeCharacterIndex());
 
                 return;
@@ -1856,7 +1874,7 @@ void OnPaperdollLeftClick() {
                         if (!pParty->activeCharacter().pEquipment[equippos]) {
                             freeslot = pParty->activeCharacter().findFreeInventoryListSlot();
                             if (freeslot >= 0) {  // drop ring into free space
-                                pParty->pPickedItem.uBodyAnchor = equippos;
+                                pParty->pPickedItem.equippedSlot = equippos;
                                 pParty->activeCharacter().pInventoryItemList[freeslot] = pParty->pPickedItem;
                                 pParty->activeCharacter().pEquipment[equippos] = freeslot + 1;
                                 mouse->RemoveHoldingItem();
@@ -1868,10 +1886,10 @@ void OnPaperdollLeftClick() {
                     // cant fit rings so swap out
                     freeslot = pParty->activeCharacter().pEquipment[ringSlot(5)] - 1;  // slot of last ring
                     _this = pParty->pPickedItem;  // copy hold item to this
-                    pParty->activeCharacter().pInventoryItemList[freeslot].uBodyAnchor = ITEM_SLOT_INVALID;
+                    pParty->activeCharacter().pInventoryItemList[freeslot].equippedSlot = ITEM_SLOT_INVALID;
                     pParty->pPickedItem.Reset();  // drop holding item
-                    pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[freeslot]); // set holding item to ring to swap out
-                    _this.uBodyAnchor = ITEM_SLOT_RING6;
+                    pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[freeslot]); // set holding item to ring to swap out
+                    _this.equippedSlot = ITEM_SLOT_RING6;
                     pParty->activeCharacter().pInventoryItemList[freeslot] = _this;  // swap from this in
                     pParty->activeCharacter().pEquipment[ringSlot(5)] = freeslot + 1;  // anchor
                     return;
@@ -1891,7 +1909,7 @@ void OnPaperdollLeftClick() {
                         if (!pitem) {  // no item in slot so just drop
                             freeslot = pParty->activeCharacter().findFreeInventoryListSlot();
                             if (freeslot >= 0) {  // drop ring into free space
-                                pParty->pPickedItem.uBodyAnchor = pos;
+                                pParty->pPickedItem.equippedSlot = pos;
                                 pParty->activeCharacter().pInventoryItemList[freeslot] = pParty->pPickedItem;
                                 pParty->activeCharacter().pEquipment[pos] = freeslot + 1;
                                 mouse->RemoveHoldingItem();
@@ -1900,10 +1918,10 @@ void OnPaperdollLeftClick() {
                         } else {  // item so swap out
                             freeslot = pParty->activeCharacter().pEquipment[pos] - 1; // slot of ring selected
                             _this = pParty->pPickedItem;  // copy hold item to this
-                            pParty->activeCharacter().pInventoryItemList[freeslot].uBodyAnchor = ITEM_SLOT_INVALID;
+                            pParty->activeCharacter().pInventoryItemList[freeslot].equippedSlot = ITEM_SLOT_INVALID;
                             pParty->pPickedItem.Reset();  // drop holding item
-                            pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[freeslot]); // set holding item to ring to swap out
-                            _this.uBodyAnchor = pos;
+                            pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[freeslot]); // set holding item to ring to swap out
+                            _this.equippedSlot = pos;
                             pParty->activeCharacter().pInventoryItemList[freeslot] = _this;  // swap from this in
                             pParty->activeCharacter().pEquipment[pos] = freeslot + 1;  // anchor
                             return;
@@ -1928,10 +1946,10 @@ void OnPaperdollLeftClick() {
                 if (shieldequip) {  // смена щита щитом
                     --shieldequip;
                     _this = pParty->pPickedItem;
-                    pParty->activeCharacter().pInventoryItemList[shieldequip].uBodyAnchor = ITEM_SLOT_INVALID;
+                    pParty->activeCharacter().pInventoryItemList[shieldequip].equippedSlot = ITEM_SLOT_INVALID;
                     pParty->pPickedItem.Reset();
-                    pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[shieldequip]);
-                    _this.uBodyAnchor = ITEM_SLOT_OFF_HAND;
+                    pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[shieldequip]);
+                    _this.equippedSlot = ITEM_SLOT_OFF_HAND;
                     pParty->activeCharacter().pInventoryItemList[shieldequip] = _this;
                     pParty->activeCharacter().pEquipment[ITEM_SLOT_OFF_HAND] = shieldequip + 1;
                     if (twohandedequip == 0) {
@@ -1942,7 +1960,7 @@ void OnPaperdollLeftClick() {
                     if (freeslot < 0) return;
                     if (!twohandedequip) {  // обычная установка щита на пустую
                                             // руку
-                        pParty->pPickedItem.uBodyAnchor = ITEM_SLOT_OFF_HAND;
+                        pParty->pPickedItem.equippedSlot = ITEM_SLOT_OFF_HAND;
                         v17 = freeslot + 1;
                         pParty->activeCharacter().pInventoryItemList[freeslot] = pParty->pPickedItem;
                         pParty->activeCharacter().pEquipment[ITEM_SLOT_OFF_HAND] = v17;
@@ -1951,10 +1969,10 @@ void OnPaperdollLeftClick() {
                     }
                     mainhandequip--;  //ставим щит когда держит двуручный меч
                     _this = pParty->pPickedItem;
-                    pParty->activeCharacter().pInventoryItemList[mainhandequip].uBodyAnchor = ITEM_SLOT_INVALID;
+                    pParty->activeCharacter().pInventoryItemList[mainhandequip].equippedSlot = ITEM_SLOT_INVALID;
                     pParty->pPickedItem.Reset();
-                    pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[mainhandequip]);
-                    _this.uBodyAnchor = ITEM_SLOT_OFF_HAND;
+                    pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[mainhandequip]);
+                    _this.equippedSlot = ITEM_SLOT_OFF_HAND;
                     pParty->activeCharacter().pInventoryItemList[freeslot] = _this;
                     pParty->activeCharacter().pEquipment[ITEM_SLOT_OFF_HAND] = freeslot + 1;
                 }
@@ -1963,7 +1981,7 @@ void OnPaperdollLeftClick() {
                 // -------------------------taken in hand(взять в руку)-------------------------------------------
             case ITEM_TYPE_SINGLE_HANDED:
             case ITEM_TYPE_WAND:
-                if (pParty->activeCharacter().hasUnderwaterSuitEquipped() && !isAncientWeapon(pParty->pPickedItem.uItemID)) {
+                if (pParty->activeCharacter().hasUnderwaterSuitEquipped() && !isAncientWeapon(pParty->pPickedItem.itemId)) {
                     pAudioPlayer->playUISound(SOUND_error);
                     return;
                 }
@@ -1975,31 +1993,31 @@ void OnPaperdollLeftClick() {
                 // dagger at expert or sword at master in left hand
                 if (pSkillType == CHARACTER_SKILL_DAGGER && (pParty->activeCharacter().getActualSkillValue(CHARACTER_SKILL_DAGGER).mastery() >= CHARACTER_SKILL_MASTERY_EXPERT)
                     || pSkillType == CHARACTER_SKILL_SWORD && (pParty->activeCharacter().getActualSkillValue(CHARACTER_SKILL_SWORD).mastery() >= CHARACTER_SKILL_MASTERY_MASTER)) {
-                    if ((signed int)mouse->uMouseX >= 560) {
+                    if (mouse->position().x >= 560) {
                         if (!twohandedequip) {
                             if (shieldequip) {
                                 --shieldequip;
                                 _this = pParty->pPickedItem;
-                                pParty->activeCharacter().pInventoryItemList[shieldequip].uBodyAnchor = ITEM_SLOT_INVALID;
+                                pParty->activeCharacter().pInventoryItemList[shieldequip].equippedSlot = ITEM_SLOT_INVALID;
                                 pParty->pPickedItem.Reset();
-                                pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[shieldequip]);
-                                _this.uBodyAnchor = ITEM_SLOT_OFF_HAND;
+                                pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[shieldequip]);
+                                _this.equippedSlot = ITEM_SLOT_OFF_HAND;
                                 pParty->activeCharacter().pInventoryItemList[shieldequip] = _this;
                                 pParty->activeCharacter().pEquipment[ITEM_SLOT_OFF_HAND] = shieldequip + 1;
                                 if (pEquipType != ITEM_TYPE_WAND) {
                                     return;
                                 }
-                                v50 = _this.uItemID;
+                                v50 = _this.itemId;
                                 break;
                             }
                             v23 = pParty->activeCharacter().findFreeInventoryListSlot();
                             if (v23 < 0) return;
-                            pParty->pPickedItem.uBodyAnchor = ITEM_SLOT_OFF_HAND;
+                            pParty->pPickedItem.equippedSlot = ITEM_SLOT_OFF_HAND;
                             pParty->activeCharacter().pInventoryItemList[v23] = pParty->pPickedItem;
                             pParty->activeCharacter().pEquipment[ITEM_SLOT_OFF_HAND] = v23 + 1;
                             mouse->RemoveHoldingItem();
                             if (pEquipType != ITEM_TYPE_WAND) return;
-                            v50 = pParty->activeCharacter().pInventoryItemList[v23].uItemID;
+                            v50 = pParty->activeCharacter().pInventoryItemList[v23].itemId;
                             break;
                         }
                     }
@@ -2007,7 +2025,7 @@ void OnPaperdollLeftClick() {
                 if (!mainhandequip) {
                     v26 = pParty->activeCharacter().findFreeInventoryListSlot();
                     if (v26 < 0) return;
-                    pParty->pPickedItem.uBodyAnchor = ITEM_SLOT_MAIN_HAND;
+                    pParty->pPickedItem.equippedSlot = ITEM_SLOT_MAIN_HAND;
                     pParty->activeCharacter().pInventoryItemList[v26] = pParty->pPickedItem;
                     pParty->activeCharacter().pEquipment[ITEM_SLOT_MAIN_HAND] = v26 + 1;
                     mouse->RemoveHoldingItem();
@@ -2016,13 +2034,13 @@ void OnPaperdollLeftClick() {
                 }
                 --mainhandequip;
                 _this = pParty->pPickedItem;
-                pParty->activeCharacter().pInventoryItemList[mainhandequip].uBodyAnchor = ITEM_SLOT_INVALID;
+                pParty->activeCharacter().pInventoryItemList[mainhandequip].equippedSlot = ITEM_SLOT_INVALID;
                 pParty->pPickedItem.Reset();
-                pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[mainhandequip]);
-                _this.uBodyAnchor = ITEM_SLOT_MAIN_HAND;
+                pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[mainhandequip]);
+                _this.equippedSlot = ITEM_SLOT_MAIN_HAND;
                 pParty->activeCharacter().pInventoryItemList[mainhandequip] = _this;
                 pParty->activeCharacter().pEquipment[ITEM_SLOT_MAIN_HAND] = mainhandequip + 1;
-                if (pEquipType == ITEM_TYPE_WAND) v50 = _this.uItemID;
+                if (pEquipType == ITEM_TYPE_WAND) v50 = _this.itemId;
                 if (twohandedequip) {
                     pParty->activeCharacter().pEquipment[ITEM_SLOT_OFF_HAND] = 0;
                 }
@@ -2046,10 +2064,10 @@ void OnPaperdollLeftClick() {
                     }
                     --mainhandequip;
                     _this = pParty->pPickedItem;
-                    pParty->activeCharacter().pInventoryItemList[mainhandequip].uBodyAnchor = ITEM_SLOT_INVALID;
+                    pParty->activeCharacter().pInventoryItemList[mainhandequip].equippedSlot = ITEM_SLOT_INVALID;
                     pParty->pPickedItem.Reset();
-                    pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[mainhandequip]);
-                    _this.uBodyAnchor = ITEM_SLOT_MAIN_HAND;
+                    pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[mainhandequip]);
+                    _this.equippedSlot = ITEM_SLOT_MAIN_HAND;
                     pParty->activeCharacter().pInventoryItemList[mainhandequip] = _this;
                     pParty->activeCharacter().pEquipment[ITEM_SLOT_MAIN_HAND] = mainhandequip + 1;
                 } else {
@@ -2059,15 +2077,15 @@ void OnPaperdollLeftClick() {
                                             // щит(замещение щитом)
                             shieldequip--;
                             _this = pParty->pPickedItem;
-                            pParty->activeCharacter().pInventoryItemList[shieldequip].uBodyAnchor = ITEM_SLOT_INVALID;
+                            pParty->activeCharacter().pInventoryItemList[shieldequip].equippedSlot = ITEM_SLOT_INVALID;
                             pParty->pPickedItem.Reset();
-                            pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[shieldequip]);
-                            _this.uBodyAnchor = ITEM_SLOT_MAIN_HAND;
+                            pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[shieldequip]);
+                            _this.equippedSlot = ITEM_SLOT_MAIN_HAND;
                             pParty->activeCharacter().pInventoryItemList[freeslot] = _this;
                             pParty->activeCharacter().pEquipment[ITEM_SLOT_OFF_HAND] = 0;
                             pParty->activeCharacter().pEquipment[ITEM_SLOT_MAIN_HAND] = freeslot + 1;
                         } else {
-                            pParty->pPickedItem.uBodyAnchor = ITEM_SLOT_MAIN_HAND;
+                            pParty->pPickedItem.equippedSlot = ITEM_SLOT_MAIN_HAND;
                             pParty->activeCharacter().pInventoryItemList[freeslot] = pParty->pPickedItem;
                             pParty->activeCharacter().pEquipment[ITEM_SLOT_MAIN_HAND] = freeslot + 1;
                             mouse->RemoveHoldingItem();
@@ -2144,8 +2162,8 @@ void OnPaperdollLeftClick() {
             AfterEnchClickEventTimeout = Duration::fromRealtimeSeconds(2);
         } else {
             if (!ptr_50C9A4_ItemToEnchant) {  // снять вещь
-                pParty->setHoldingItem(pitem);
-                pParty->activeCharacter().pEquipment[pitem->uBodyAnchor] = 0;
+                pParty->setHoldingItem(*pitem);
+                pParty->activeCharacter().pEquipment[pitem->equippedSlot] = 0;
                 pitem->Reset();
 
                 // pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[v34
@@ -2178,14 +2196,14 @@ void OnPaperdollLeftClick() {
         // player->pEquipment.uGlove);
 
     } else {  // z picking as before
-        v34 =
-            render
-                ->pActiveZBuffer[mouse->uMouseX + mouse->uMouseY * render->GetRenderDimensions().w] & 0xFFFF;
+        v34 = 0;
+        v34 = render->QueryEquipmentHitMap(mouse->position()) & 0xFFFF;
+
         if (v34) {
             // v36 = v34 - 1;
             // v38 = &pCharacters[pParty->_activeCharacter]->pInventoryItemList[v34 - 1];
-            pEquipType = pParty->activeCharacter().pInventoryItemList[v34 - 1].GetItemEquipType();
-            if (pParty->activeCharacter().pInventoryItemList[v34 - 1].uItemID == ITEM_QUEST_WETSUIT) {
+            pEquipType = pParty->activeCharacter().pInventoryItemList[v34 - 1].type();
+            if (pParty->activeCharacter().pInventoryItemList[v34 - 1].itemId == ITEM_QUEST_WETSUIT) {
                 if (engine->IsUnderwater()) {
                     pAudioPlayer->playUISound(SOUND_error);
                     return;
@@ -2216,15 +2234,15 @@ void OnPaperdollLeftClick() {
                 AfterEnchClickEventTimeout = Duration::fromRealtimeSeconds(2);
             } else {
                 if (!ptr_50C9A4_ItemToEnchant) {  // снять вещь
-                    pParty->setHoldingItem(&pParty->activeCharacter().pInventoryItemList[v34 - 1]);
-                    pParty->activeCharacter().pEquipment[pParty->activeCharacter().pInventoryItemList[v34 - 1].uBodyAnchor] = 0;
+                    pParty->setHoldingItem(pParty->activeCharacter().pInventoryItemList[v34 - 1]);
+                    pParty->activeCharacter().pEquipment[pParty->activeCharacter().pInventoryItemList[v34 - 1].equippedSlot] = 0;
                     pParty->activeCharacter().pInventoryItemList[v34 - 1].Reset();
                 }
             }
         } else {  // снять лук
             if (pParty->activeCharacter().pEquipment[ITEM_SLOT_BOW]) {
                 _this = pParty->activeCharacter().pInventoryItemList[pParty->activeCharacter().pEquipment[ITEM_SLOT_BOW] - 1];
-                pParty->setHoldingItem(&_this);
+                pParty->setHoldingItem(_this);
                 _this.Reset();
                 pParty->activeCharacter().pEquipment[ITEM_SLOT_BOW] = 0;
             }

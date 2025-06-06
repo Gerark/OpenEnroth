@@ -1,73 +1,28 @@
 #pragma once
 
-#include <array>
-#include <cstring>
-#include <cstdint>
-#include <string>
+#include <string_view>
 #include <vector>
 
+#include "Engine/Data/IconFrameData.h"
 #include "Engine/Time/Duration.h"
 
-#include "Utility/Memory/Blob.h"
-
 class GraphicsImage;
+struct TriBlob;
 
-class Icon {
+class IconFrameTable {
  public:
-    inline Icon() : img(nullptr) {}
+    int animationId(std::string_view animationName) const; // By animation name.
+    Duration animationLength(int animationId) const;
+    GraphicsImage *animationFrame(int animationId, Duration frameTime);
 
-    inline void SetAnimationName(std::string_view name) {
-        anim_name = name;
-    }
-    inline const std::string &GetAnimationName() const { return anim_name; }
+    friend void deserialize(const TriBlob &src, IconFrameTable *dst); // In TableSerialization.cpp.
 
-    inline void SetAnimLength(Duration anim_length) {
-        this->anim_length = anim_length;
-    }
-    inline Duration GetAnimLength() const { return this->anim_length; }
+ private:
+    GraphicsImage *loadTexture(int frameId);
 
-    inline void SetAnimTime(Duration anim_time) {
-        this->anim_time = anim_time;
-    }
-    inline Duration GetAnimTime() const { return this->anim_time; }
-
-    GraphicsImage *GetTexture();
-
-    std::string pTextureName;
-    int16_t uFlags = 0;
-    int id = 0;
-
- protected:
-    std::string anim_name;
-    Duration anim_length;
-    Duration anim_time;
-    GraphicsImage *img = nullptr;
-};
-
-struct IconFrameTable {
-    Icon *GetIcon(unsigned int idx);
-    Icon *GetIcon(const char *pIconName);
-    unsigned int FindIcon(std::string_view pIconName);
-    Icon *GetFrame(unsigned int uIconID, Duration frame_time);
-
-    std::vector<Icon> pIcons;
-};
-
-class UIAnimation {
- public:
-    Icon *icon;
-
-    int16_t uAnimTime;
-    Duration uAnimLength;
-    int16_t x;
-    int16_t y;
+ private:
+    std::vector<IconFrameData> _frames;
+    std::vector<GraphicsImage *> _textures;
 };
 
 extern IconFrameTable *pIconsFrameTable;
-
-extern UIAnimation *pUIAnim_Food;
-extern UIAnimation *pUIAnim_Gold;
-extern UIAnimation *pUIAnum_Torchlight;
-extern UIAnimation *pUIAnim_WizardEye;
-
-extern std::array<UIAnimation *, 4> pUIAnims;

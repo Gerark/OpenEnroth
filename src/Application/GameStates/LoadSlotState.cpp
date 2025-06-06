@@ -1,7 +1,6 @@
 #include "LoadSlotState.h"
 
 #include <Engine/Engine.h>
-#include <Engine/Graphics/Renderer/Renderer.h>
 #include <Engine/SaveLoad.h>
 #include <GUI/GUIMessageQueue.h>
 #include <GUI/GUIWindow.h>
@@ -9,8 +8,8 @@
 
 #include <memory>
 
-LoadSlotState::LoadSlotState() {
-}
+LoadSlotState::LoadSlotState() = default;
+LoadSlotState::~LoadSlotState() = default;
 
 FsmAction LoadSlotState::enter() {
     current_screen_type = SCREEN_LOADGAME;
@@ -62,6 +61,10 @@ FsmAction LoadSlotState::update() {
         }
         case UIMSG_SaveLoadScroll: {
             _uiLoadSaveSlot->scroll(param1);
+            break;
+        }
+        case UIMSG_QuickLoad: {
+            _uiLoadSaveSlot->quickLoad();
             break;
         }
         default:

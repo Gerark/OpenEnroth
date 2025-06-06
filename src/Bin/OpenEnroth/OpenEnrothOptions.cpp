@@ -6,30 +6,40 @@
 #include <vector>
 #include <string>
 
-#include <glob/glob.hpp> // NOLINT: not a C system header.
-
-#include "Application/GamePathResolver.h"
+#include "Application/Startup/PathResolver.h"
 
 #include "Library/Cli/CliApp.h"
+#include "Library/Environment/Interface/Environment.h"
 
+#include "Utility/Exception.h"
 #include "Utility/String/Format.h"
 
 OpenEnrothOptions OpenEnrothOptions::parse(int argc, char **argv) {
+    // Note that it's OK to create a temporary `Environment` here.
+    std::unique_ptr<Environment> env = Environment::createStandardEnvironment();
+
     OpenEnrothOptions result;
     std::unique_ptr<CliApp> app = std::make_unique<CliApp>();
 
+    std::optional<bool> portable;
     app->add_option(
         "--data-path", result.dataPath,
         fmt::format("Path to MM7 data folder, default is taken from '{}' environment variable. "
                     "If neither this argument is supplied nor the environment variable is set, "
-                    "then on Windows OpenEnroth will also try to read the path from registry. "
-                    "If this also fails, then OpenEnroth will look for game data in the current folder.", mm7PathOverrideKey))->check(CLI::ExistingDirectory)->option_text("PATH");
+                    "then OpenEnroth will try to look for game data in the current folder, "
+                    "then on Windows it will also try to read the path from registry, "
+                    "and on MacOS it will also try to look in '~/Library/Application Support/OpenEnroth'.", mm7PathOverrideKey))->check(CLI::ExistingDirectory)->option_text("PATH");
     app->add_option(
-        "--config", result.configPath,
-        "Path to OpenEnroth config file, default is 'openenroth.ini' in data folder.")->option_text("PATH");
+        "--user-path", result.userPath,
+        fmt::format("Path to OpenEnroth user data folder. Default is '{}'.",
+                    resolveMm7UserPath(env.get())))->check(CLI::ExistingDirectory)->option_text("PATH");
+    app->add_flag(
+        "--portable", portable,
+        "Run in portable mode, game & user data paths will default to current folder. "
+        "If '.portable' file exists in the current folder, then this parameter defaults to 'true'.");
     app->add_option(
         "--log-level", result.logLevel,
-        "Log level, one of 'trace', 'debug', 'info', 'warning', 'error', 'critical'.")->option_text("LOG_LEVEL");
+        "Log level, one of 'none', 'trace', 'debug', 'info', 'warning', 'error', 'critical'.")->option_text("LOG_LEVEL");
     app->add_flag_callback(
         "-v,--verbose", [&] { result.logLevel = LOG_TRACE; },
         "Set log level to 'trace'.");
@@ -44,7 +54,7 @@ OpenEnrothOptions OpenEnrothOptions::parse(int argc, char **argv) {
         "Path to trace file(s) to play.")->required()->option_text("...");
     play->set_help_flag("-h,--help", "Print help and exit."); // This places --help last in the command list.
 
-    bool globTraces = false;
+    std::string traceDir;
     CLI::App *retrace = app->add_subcommand("retrace", "Retrace traces and exit.", result.subcommand, SUBCOMMAND_RETRACE)->fallthrough();
     app->add_flag(
         "--headless", result.headless,
@@ -54,32 +64,45 @@ OpenEnrothOptions OpenEnrothOptions::parse(int argc, char **argv) {
         "Use random number generators that print stack trace on each call.");
     retrace->add_flag(
         "--check-canonical", result.retrace.checkCanonical,
-        "Check whether all passed traces are stored in canonical representation and return an error if not.");
-    retrace->add_flag(
-        "--glob", globTraces,
-        "Glob passed trace paths.")->group(""); // group("") hides this option. It's here so that we don't have to jump through hoops in cmake.
+        "Check whether all passed traces are stored in canonical representation and return an error if not. Don't overwrite the actual trace files.");
+    retrace->add_option(
+        "--ls", traceDir,
+        "Directory to look for traces to retrace."); // This is here so that we don't have to jump through hoops in cmake.
     retrace->add_option(
         "TRACE", result.retrace.traces,
-        "Path to trace file(s) to retrace.")->required()->option_text("...");
+        "Path to trace file(s) to retrace.")->option_text("...");
     retrace->set_help_flag("-h,--help", "Print help and exit."); // This places --help last in the command list.
 
     app->parse(argc, argv, result.helpPrinted);
 
-    if (result.subcommand == SUBCOMMAND_RETRACE) {
-        result.useConfig = false; // Don't use external config if retracing.
+    if (!portable && std::filesystem::exists(".portable"))
+        portable = true;
+    if (portable && *portable) {
+        if (result.userPath.empty())
+            result.userPath = std::filesystem::current_path().generic_string();
+        if (result.dataPath.empty())
+            result.dataPath = std::filesystem::current_path().generic_string();
+    }
 
-        if (globTraces) {
-            std::vector<std::string> patterns = std::move(result.retrace.traces);
-            result.retrace.traces.clear();
-            for (const std::string &pattern : patterns)
-                for (const std::filesystem::path &path : glob::glob(pattern))
-                    result.retrace.traces.push_back(path.string());
+    if (result.subcommand == SUBCOMMAND_RETRACE) {
+        result.ramFsUserData = true; // No config & no user data if retracing.
+
+        if (!traceDir.empty()) {
+            for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(traceDir))
+                if (entry.path().extension() == ".json")
+                    result.retrace.traces.push_back(entry.path().generic_string());
             std::ranges::sort(result.retrace.traces); // NOLINT: This is ranges::sort. We want a fixed order.
         }
+
+        if (result.retrace.traces.empty())
+            throw Exception("No trace files to retrace.");
+
+        if (!result.logLevel)
+            result.logLevel = LOG_ERROR; // Default log level for retracing is LOG_ERROR.
     }
 
     if (result.subcommand == SUBCOMMAND_PLAY)
-        result.useConfig = false; // Don't use external config if playing a trace.
+        result.ramFsUserData = true; // No config & no user data if playing a trace.
 
     return result;
 }

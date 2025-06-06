@@ -38,6 +38,7 @@ struct CollisionState {
     int uSectorID = 0;  // Indoor sector id.
     Pid pid;  // Pid of the object that we're collided with.
     BBoxf bbox;
+    float heightOffset = 0.0f; // Height offset from low point for slide origin calc
 
     Vec3f collisionPos;  // Point at which nearest collision occurs (touching radii)
 };
@@ -70,10 +71,9 @@ void CollideIndoorWithDecorations();
 /**
  * @offset 0x0046E26D.
  *
- * @param grid_x                        Grid x coordinate.
- * @param grid_y                        Grid y coordinate.
+ * @param gridPos                       Grid coordinates.
  */
-void CollideOutdoorWithDecorations(int grid_x, int grid_y);
+void CollideOutdoorWithDecorations(Vec2i gridPos);
 
 /**
  * @offset 0x0046F04E.
@@ -120,7 +120,7 @@ void ProcessActorCollisionsODM(Actor &actor, bool isFlying);
 
 void ProcessPartyCollisionsBLV(int sectorId, int min_party_move_delta_sqr, int *faceId, int *faceEvent);
 
-void ProcessPartyCollisionsODM(Vec3f* partyNewPos, Vec3f* partyInputSpeed, bool* partyIsOnWater, int* floorFaceId, bool* partyNotOnModel, bool* partyHasHitModel, int* triggerID);
+void ProcessPartyCollisionsODM(Vec3f* partyNewPos, Vec3f* partyInputSpeed, int* floorFaceId, bool* partyNotOnModel, bool* partyHasHitModel, int* triggerID);
 
 /**
  * Finds whether this quadratic (of the form AX^2 + BX + C = 0) can be solved and if the solution is smaller

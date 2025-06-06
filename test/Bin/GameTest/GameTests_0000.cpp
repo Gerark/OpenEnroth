@@ -18,8 +18,8 @@
 #include "Engine/Party.h"
 #include "Engine/AssetsManager.h"
 #include "Engine/Engine.h"
+#include "Engine/EngineFileSystem.h"
 
-#include "Utility/DataPath.h"
 #include "Utility/ScopeGuard.h"
 
 
@@ -48,21 +48,8 @@ GAME_TEST(Issues, Issue159) {
 
 GAME_TEST(Issues, Issue163) {
     // Testing that pressing the Load Game button doesn't crash even if the 'saves' folder doesn't exist.
-    std::string savesDir = makeDataPath("saves");
-    std::string savesDirMoved;
-
-    MM_AT_SCOPE_EXIT({
-        if (!savesDirMoved.empty()) {
-            std::error_code ec;
-            std::filesystem::rename(savesDirMoved, savesDir, ec); // Using std::error_code here, so can't throw.
-        }
-    });
-
-    if (std::filesystem::exists(savesDir)) {
-        savesDirMoved = savesDir + "_moved_for_testing";
-        ASSERT_FALSE(std::filesystem::exists(savesDirMoved)); // Throws on failure.
-        std::filesystem::rename(savesDir, savesDirMoved);
-    }
+    ufs->remove("saves");
+    EXPECT_FALSE(ufs->exists("saves"));
 
     game.pressGuiButton("MainMenu_LoadGame"); // Shouldn't crash.
     game.tick(10);
@@ -94,22 +81,11 @@ GAME_TEST(Issues, Issue198) {
         }
     };
 
-    // Preload item images in the main thread first.
-    game.runGameRoutine([&] {
-        forEachInventoryItem([](const ItemGen &item, int /*x*/, int /*y*/) {
-            // Calling width() forces the texture to be created.
-            assets->getImage_ColorKey(pItemTable->pItems[item.uItemID].iconName)->width();
-        });
-    });
+    forEachInventoryItem([](const Item &item, int x, int y) {
+        Sizei itemSize = item.inventorySize();
 
-    // Then can safely check everything.
-    forEachInventoryItem([](const ItemGen &item, int x, int y) {
-        GraphicsImage *image = assets->getImage_ColorKey(pItemTable->pItems[item.uItemID].iconName);
-        int width = GetSizeInInventorySlots(image->width());
-        int height = GetSizeInInventorySlots(image->height());
-
-        EXPECT_LE(x + width, Character::INVENTORY_SLOTS_WIDTH);
-        EXPECT_LE(y + height, Character::INVENTORY_SLOTS_HEIGHT);
+        EXPECT_LE(x + itemSize.w, Character::INVENTORY_SLOTS_WIDTH);
+        EXPECT_LE(y + itemSize.h, Character::INVENTORY_SLOTS_HEIGHT);
     });
 }
 
@@ -147,8 +123,8 @@ GAME_TEST(Issues, Issue211) {
 
 GAME_TEST(Issues, Issue223) {
     // Fire and air resistance not resetting between games
-    auto fireTape = charTapes.resistances(CHARACTER_ATTRIBUTE_RESIST_FIRE);
-    auto airTape = charTapes.resistances(CHARACTER_ATTRIBUTE_RESIST_AIR);
+    auto fireTape = charTapes.resistances(ATTRIBUTE_RESIST_FIRE);
+    auto airTape = charTapes.resistances(ATTRIBUTE_RESIST_AIR);
     test.playTraceFromTestData("issue_223.mm7", "issue_223.json");
     // expect normal resistances after restart 55-00-00-00.
     EXPECT_EQ(fireTape.frontBack(), tape({280, 262, 390, 241}, {5, 0, 0, 0}));
@@ -202,7 +178,7 @@ GAME_TEST(Issues, Issue268_939) {
     EXPECT_EQ(pParty->pCharacters[0].GetRangedAttack(), 18);
     EXPECT_EQ(pParty->pCharacters[1].GetRangedAttack(), 23);
     EXPECT_EQ(pParty->pCharacters[2].GetRangedAttack(), 21);
-    EXPECT_EQ(pParty->pCharacters[3].GetRangedAttack(), 17);
+    EXPECT_EQ(pParty->pCharacters[3].GetRangedAttack(), 9); // was 17 in vanilla see #1927
     // dmg
     EXPECT_EQ(pParty->pCharacters[0].GetRangedDamageString(), "9 - 14");
     EXPECT_EQ(pParty->pCharacters[1].GetRangedDamageString(), "11 - 16");
@@ -226,11 +202,11 @@ GAME_TEST(Issues, Issue268_939) {
 
 GAME_TEST(Issues, Issue271) {
     // Party shouldn't yell when landing from flight.
-    auto expressionTape = charTapes.expression(1);
+    auto expressionTape = charTapes.portrait(1);
     auto landingTape = tapes.custom([] { return !!(pParty->uFlags & PARTY_FLAG_LANDING); });
     auto zTape = tapes.custom([] { return pParty->pos.z; });
     test.playTraceFromTestData("issue_271.mm7", "issue_271.json");
-    EXPECT_FALSE(expressionTape.contains(CHARACTER_EXPRESSION_FEAR));
+    EXPECT_MISSES(expressionTape, PORTRAIT_FEAR);
     EXPECT_EQ(landingTape, tape(false, true));
     EXPECT_LT(zTape.delta(), -1000);
 }
@@ -308,25 +284,25 @@ GAME_TEST(Issues, Issue293a) {
     auto totalItemsTape = tapes.totalItemCount();
     auto conditionsTape = charTapes.conditions();
     test.playTraceFromTestData("issue_293a.mm7", "issue_293a.json", [] {
-        EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_MIGHT], 30);
-        EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_INTELLIGENCE], 5);
-        EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_PERSONALITY], 5);
-        EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_ENDURANCE], 13);
-        EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_SPEED], 14);
-        EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_ACCURACY], 13);
-        EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_LUCK], 7);
+        EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_MIGHT], 30);
+        EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_INTELLIGENCE], 5);
+        EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_PERSONALITY], 5);
+        EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_ENDURANCE], 13);
+        EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_SPEED], 14);
+        EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_ACCURACY], 13);
+        EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_LUCK], 7);
     });
 
     EXPECT_EQ(totalItemsTape.delta(), +1);
     EXPECT_EQ(conditionsTape.frontBack(), tape({CONDITION_GOOD, CONDITION_GOOD, CONDITION_GOOD, CONDITION_GOOD},
                                                {CONDITION_DISEASE_WEAK, CONDITION_DISEASE_WEAK, CONDITION_DISEASE_WEAK, CONDITION_DISEASE_WEAK}));
-    EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_MIGHT], 30);
-    EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_INTELLIGENCE], 7); // +2
-    EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_PERSONALITY], 5);
-    EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_ENDURANCE], 13);
-    EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_SPEED], 14);
-    EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_ACCURACY], 15); // +2
-    EXPECT_EQ(pParty->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_LUCK], 7);
+    EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_MIGHT], 30);
+    EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_INTELLIGENCE], 7); // +2
+    EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_PERSONALITY], 5);
+    EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_ENDURANCE], 13);
+    EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_SPEED], 14);
+    EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_ACCURACY], 15); // +2
+    EXPECT_EQ(pParty->pCharacters[0]._stats[ATTRIBUTE_LUCK], 7);
 }
 
 GAME_TEST(Issues, Issue293b) {
@@ -371,7 +347,7 @@ GAME_TEST(Prs, Pr314_742) {
     test.playTraceFromTestData("pr_314.mm7", "pr_314.json");
 
     for (int i = 0; i < 4; i++)
-        EXPECT_EQ(pParty->pCharacters[i]._stats[CHARACTER_ATTRIBUTE_LUCK], 20);
+        EXPECT_EQ(pParty->pCharacters[i]._stats[ATTRIBUTE_LUCK], 20);
 
     EXPECT_EQ(pParty->pCharacters[0].classType, CLASS_MONK);
     EXPECT_EQ(pParty->pCharacters[1].classType, CLASS_THIEF);
@@ -676,7 +652,7 @@ GAME_TEST(Issues, Issue489) {
     // Test that AOE version of Shrinking Ray spell works.
     auto chibisTape = actorTapes.countByBuff(ACTOR_BUFF_SHRINK);
     test.playTraceFromTestData("issue_489.mm7", "issue_489.json");
-    EXPECT_EQ(chibisTape, tape(0, 15));
+    EXPECT_EQ(chibisTape, tape(0, 14));
 }
 
 GAME_TEST(Issues, Issue490) {

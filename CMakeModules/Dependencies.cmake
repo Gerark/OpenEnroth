@@ -50,18 +50,19 @@ endfunction()
 
 macro(resolve_dependencies) # Intentionally a macro - we want set() to work in parent scope.
     if(OE_USE_PREBUILT_DEPENDENCIES)
-        # "r3" is version as set in yml files in OpenEnroth_Dependencies, "master" is a branch name. This way it's
+        # "r6" is version as set in yml files in OpenEnroth_Dependencies, "master" is a branch name. This way it's
         # possible to test with dependencies built from different branches of the OpenEnroth_Dependencies repo.
-        set(PREBUILT_DEPS_TAG "deps_r3_master")
+        set(PREBUILT_DEPS_TAG "deps_r6_master")
+
         message(STATUS "Using prebuilt dependencies with PREBUILT_DEPS_TAG=${PREBUILT_DEPS_TAG}")
 
         set(PREBUILT_DEPS_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
-        if (PREBUILT_DEPS_BUILD_TYPE STREQUAL "RelWithDebInfo" OR PREBUILT_DEPS_BUILD_TYPE STREQUAL "MinSizeRel")
+        if (PREBUILT_DEPS_BUILD_TYPE STREQUAL "MinSizeRel")
             set(PREBUILT_DEPS_BUILD_TYPE "Release")
         endif()
 
         set(PREBUILT_DEPS_FILENAME "${OE_BUILD_PLATFORM}_${PREBUILT_DEPS_BUILD_TYPE}_${OE_BUILD_ARCHITECTURE}.zip")
-        set(PREBUILT_DEPS_DIR "${CMAKE_CURRENT_BINARY_DIR}/dependencies")
+        set(PREBUILT_DEPS_DIR "${CMAKE_CURRENT_BINARY_DIR}/dependencies/${PREBUILT_DEPS_TAG}")
         if (NOT EXISTS "${PREBUILT_DEPS_DIR}/${PREBUILT_DEPS_FILENAME}")
             download_prebuilt_dependencies("${PREBUILT_DEPS_TAG}" "${PREBUILT_DEPS_FILENAME}" "${PREBUILT_DEPS_DIR}" DOWNLOAD_STATUS)
             if(NOT DOWNLOAD_STATUS EQUAL 0)
@@ -81,6 +82,11 @@ macro(resolve_dependencies) # Intentionally a macro - we want set() to work in p
 
         # Prebuilt zlib is static, so we instruct the find_package to look for the static one.
         set(ZLIB_USE_STATIC_LIBS ON)
+
+        # Frameworks get in the way of finding proper headers for prebuilt dependencies.
+        # On MacOS find_library looks for frameworks first by default, and thus finds png.h in Mono.framework, which
+        # fucks everything up for us royally.
+        set(CMAKE_FIND_FRAMEWORK LAST)
     else()
         message(STATUS "Not using prebuilt dependencies")
     endif()
@@ -94,7 +100,8 @@ macro(resolve_dependencies) # Intentionally a macro - we want set() to work in p
         add_library(SDL2OE INTERFACE)
         add_library(SDL2::SDL2 ALIAS SDL2OE)
         add_library(SDL2::SDL2OE ALIAS SDL2OE)
-        set(SDL2_FOUND ON)
+        add_library(PNG INTERFACE)
+        add_library(PNG::PNG ALIAS PNG)
     else()
         # Prebuilt & user-supplied deps are resolved using the same code here.
         find_package(ZLIB REQUIRED)
@@ -118,6 +125,8 @@ macro(resolve_dependencies) # Intentionally a macro - we want set() to work in p
         #
         # If you're getting an error here, try passing something like -DOPENAL_ROOT=/opt/homebrew/opt/openal-soft to cmake.
         find_package(OpenAL CONFIG REQUIRED)
+
+        find_package(PNG REQUIRED)
     endif()
 
     # On Android we somehow get OpenGL available by default, despite it not being findable by find_package. So we

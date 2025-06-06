@@ -1,12 +1,15 @@
 #include "Engine/Objects/Actor.h"
 
 #include <algorithm>
+#include <deque>
 #include <string>
 #include <utility>
 #include <vector>
 #include <optional>
 
 #include "Engine/Engine.h"
+#include "Engine/Data/AwardEnums.h"
+#include "Engine/Data/HouseEnumFunctions.h"
 #include "Engine/Graphics/Camera.h"
 #include "Engine/Graphics/DecalBuilder.h"
 #include "Engine/Objects/Decoration.h"
@@ -28,7 +31,6 @@
 #include "Engine/AttackList.h"
 #include "Engine/Tables/ItemTable.h"
 #include "Engine/Tables/FactionTable.h"
-#include "Engine/Tables/AwardTable.h"
 #include "Engine/Time/Timer.h"
 #include "Engine/TurnEngine/TurnEngine.h"
 #include "Engine/MapInfo.h"
@@ -46,7 +48,8 @@
 // should be injected into Actor but struct size cant be changed
 static SpellFxRenderer *spell_fx_renderer = EngineIocContainer::ResolveSpellFxRenderer();
 
-std::vector<Actor> pActors;
+// Using deque for pointer stability
+std::deque<Actor> pActors;
 
 stru319 stru_50C198;  // idb
 
@@ -108,12 +111,11 @@ void Actor::DrawHealthBar(Actor *actor, GUIWindow *window) {
     // centralise for clipping and draw
     unsigned int uX = window->uFrameX + (signed int)(window->uFrameWidth - bar_length) / 2;
 
-    render->SetUIClipRect(uX, window->uFrameY + 32, uX + bar_length, window->uFrameY + 52);
+    render->SetUIClipRect(Recti(uX, window->uFrameY + 32, bar_length, 20));
     render->DrawTextureNew(uX / 640.0f, (window->uFrameY + 32) / 480.0f,
                                 game_ui_monster_hp_background);
 
-    render->SetUIClipRect(uX, window->uFrameY + 32, uX + bar_filled_length,
-                          window->uFrameY + 52);
+    render->SetUIClipRect(Recti(uX, window->uFrameY + 32, bar_filled_length, 20));
     render->DrawTextureNew(uX / 640.0f, (window->uFrameY + 34) / 480.0f,
                                 bar_image);
 
@@ -154,16 +156,16 @@ void Actor::giveItem(signed int uActorID, ItemId uItemID, unsigned int bGive) {
         if (bGive) {
             if (pActors[uActorID].carriedItemId == ITEM_NULL)
                 pActors[uActorID].carriedItemId = uItemID;
-            else if (pActors[uActorID].items[0].uItemID == ITEM_NULL)
-                pActors[uActorID].items[0].uItemID = uItemID;
-            else if (pActors[uActorID].items[1].uItemID == ITEM_NULL)
-                pActors[uActorID].items[1].uItemID = uItemID;
+            else if (pActors[uActorID].items[0].itemId == ITEM_NULL)
+                pActors[uActorID].items[0].itemId = uItemID;
+            else if (pActors[uActorID].items[1].itemId == ITEM_NULL)
+                pActors[uActorID].items[1].itemId = uItemID;
         } else {
             if (pActors[uActorID].carriedItemId == uItemID)
                 pActors[uActorID].carriedItemId = ITEM_NULL;
-            else if (pActors[uActorID].items[0].uItemID == uItemID)
+            else if (pActors[uActorID].items[0].itemId == uItemID)
                 pActors[uActorID].items[0].Reset();
-            else if (pActors[uActorID].items[1].uItemID == uItemID)
+            else if (pActors[uActorID].items[1].itemId == uItemID)
                 pActors[uActorID].items[1].Reset();
         }
     }
@@ -191,11 +193,11 @@ void Actor::SetRandomGoldIfTheresNoItem() {
     int v2;  // edi@1
 
     v2 = 0;
-    if (this->items[3].uItemID == ITEM_NULL) {
+    if (this->items[3].itemId == ITEM_NULL) {
         if (this->monsterInfo.goldDiceRolls) {
             v2 = grng->randomDice(this->monsterInfo.goldDiceRolls, this->monsterInfo.goldDiceSides);
             if (v2) {
-                this->items[3].uItemID = ITEM_GOLD_SMALL;
+                this->items[3].itemId = ITEM_GOLD_SMALL;
                 this->items[3].goldAmount = v2;
             }
         }
@@ -345,7 +347,7 @@ void Actor::AI_SpellAttack(unsigned int uActorID, AIDirection *pDir,
                 sprite.spellCasterAbility = ABILITY_SPELL1;
 
                 spriteId = sprite.Create(yaw, pitch, pObjectList->pObjects[sprite.uObjectDescID].uSpeed, 0);
-                i = grng->random(1024) - 512;
+                j = grng->random(1024) - 512;
                 k = grng->random(1024) - 512;
             }
             if (spriteId != -1) {
@@ -539,6 +541,10 @@ void Actor::AI_SpellAttack(unsigned int uActorID, AIDirection *pDir,
             pAudioPlayer->playSound(SOUND_Fate, SOUND_MODE_PID, Pid(OBJECT_Actor, uActorID));
             break;
 
+        case SPELL_LIGHT_PARALYZE:
+            // TODO(pskelton): This is a vanilla bug - monsters with instant targeting spells can't actually use them - #1246
+            logger->info("Spell Paralyze cast - replaced with dispel");
+            [[fallthrough]];
         case SPELL_LIGHT_DISPEL_MAGIC:
             for (SpellBuff &buff : pParty->pPartyBuffs) {
                 buff.Reset();
@@ -1828,12 +1834,12 @@ void Actor::Die(unsigned int uActorID) {
     for (SpellBuff &buff : actor->buffs)
         buff.Reset();
 
-    ItemGen drop;
+    Item drop;
     drop.Reset();
-    drop.uItemID = itemDropForMonsterType(monsterTypeForMonsterId(actor->monsterInfo.id));
+    drop.itemId = itemDropForMonsterType(monsterTypeForMonsterId(actor->monsterInfo.id));
 
-    if (grng->random(100) < 20 && drop.uItemID != ITEM_NULL) {
-        SpriteObject::dropItemAt(pItemTable->pItems[drop.uItemID].uSpriteID,
+    if (grng->random(100) < 20 && drop.itemId != ITEM_NULL) {
+        SpriteObject::dropItemAt(pItemTable->items[drop.itemId].spriteId,
                                  actor->pos + Vec3f(0, 0, 16), grng->random(200) + 200, 1, true, 0, &drop);
     }
 
@@ -2440,7 +2446,7 @@ void Actor::SummonMinion(int summonerId) {
         int sectorId = pIndoor->GetSector(v15, v17, this->pos.z);
         if (sectorId != actorSector) return;
         int z = BLV_GetFloorLevel(Vec3f(v15, v17, v27), sectorId);
-        if (z != -30000) return;
+        if (z == -30000) return;
         if (std::abs(z - v27) > 1024) return;
     }
 
@@ -3138,8 +3144,8 @@ int Actor::DamageMonsterFromParty(Pid a1, unsigned int uActorID_Monster, const V
                 if (pMonster->buffs[ACTOR_BUFF_SHIELD].Active())
                     uDamageAmount /= 2;
                 IsAdditionalDamagePossible = true;
-                if (projectileSprite->containing_item.uItemID != ITEM_NULL &&
-                    projectileSprite->containing_item.special_enchantment == ITEM_ENCHANTMENT_OF_CARNAGE) {
+                if (projectileSprite->containing_item.itemId != ITEM_NULL &&
+                    projectileSprite->containing_item.specialEnchantment == ITEM_ENCHANTMENT_OF_CARNAGE) {
                     attackElement = DAMAGE_FIRE;
                 } else if (!character->characterHitOrMiss(pMonster, v61, skillLevel)) {
                     character->playReaction(SPEECH_ATTACK_MISS);
@@ -3183,7 +3189,7 @@ int Actor::DamageMonsterFromParty(Pid a1, unsigned int uActorID_Monster, const V
         } else {
             for (ItemSlot i : {ITEM_SLOT_OFF_HAND, ITEM_SLOT_MAIN_HAND}) {
                 if (character->HasItemEquipped(i)) {
-                    ItemGen *item;
+                    Item *item;
                     if (i == ITEM_SLOT_OFF_HAND)
                         item = character->GetOffHandItem();
                     else
@@ -3211,9 +3217,9 @@ int Actor::DamageMonsterFromParty(Pid a1, unsigned int uActorID_Monster, const V
         Actor::AggroSurroundingPeasants(uActorID_Monster, 1);
         if (engine->config->settings.ShowHits.value()) {
             if (projectileSprite)
-                engine->_statusBar->setEvent(LSTR_FMT_S_SHOOTS_S_FOR_U, character->name, pMonster->name, uDamageAmount);
+                engine->_statusBar->setEvent(LSTR_S_SHOOTS_S_FOR_LU_POINTS, character->name, pMonster->name, uDamageAmount);
             else
-                engine->_statusBar->setEvent(LSTR_FMT_S_HITS_S_FOR_U, character->name, pMonster->name, uDamageAmount);
+                engine->_statusBar->setEvent(LSTR_S_HITS_S_FOR_LU_DAMAGE, character->name, pMonster->name, uDamageAmount);
         }
     } else {
         Actor::Die(uActorID_Monster);
@@ -3228,7 +3234,7 @@ int Actor::DamageMonsterFromParty(Pid a1, unsigned int uActorID_Monster, const V
         }
         character->playReaction(speech);
         if (engine->config->settings.ShowHits.value()) {
-            engine->_statusBar->setEvent(LSTR_FMT_S_INFLICTS_U_KILLING_S, character->name, uDamageAmount, pMonster->name);
+            engine->_statusBar->setEvent(LSTR_S_INFLICTS_LU_POINTS_KILLING_S, character->name, uDamageAmount, pMonster->name);
         }
     }
     if (pMonster->buffs[ACTOR_BUFF_PAIN_REFLECTION].Active() && uDamageAmount != 0)
@@ -3242,7 +3248,7 @@ int Actor::DamageMonsterFromParty(Pid a1, unsigned int uActorID_Monster, const V
             extraRecoveryTime = debug_combat_recovery_mul * flt_debugrecmod3 * 20_ticks;
         pMonster->monsterInfo.recoveryTime += extraRecoveryTime;
         if (engine->config->settings.ShowHits.value()) {
-            engine->_statusBar->setEvent(LSTR_FMT_S_STUNS_S, character->name, pMonster->name);
+            engine->_statusBar->setEvent(LSTR_S_STUNS_S, character->name, pMonster->name);
         }
     }
     if (hit_will_paralyze && pMonster->CanAct() &&
@@ -3250,7 +3256,7 @@ int Actor::DamageMonsterFromParty(Pid a1, unsigned int uActorID_Monster, const V
         CombinedSkillValue maceSkill = character->getActualSkillValue(CHARACTER_SKILL_MACE);
         pMonster->buffs[ACTOR_BUFF_PARALYZED].Apply(pParty->GetPlayingTime() + Duration::fromMinutes(maceSkill.level()), maceSkill.mastery(), 0, 0, 0);
         if (engine->config->settings.ShowHits.value()) {
-            engine->_statusBar->setEvent(LSTR_FMT_S_PARALYZES_S, character->name, pMonster->name);
+            engine->_statusBar->setEvent(LSTR_S_PARALYZES_S, character->name, pMonster->name);
         }
     }
     if (knockbackValue > 10) knockbackValue = 10;
@@ -3536,16 +3542,16 @@ bool CheckActors_proximity() {
 
 void StatusBarItemFound(int num_gold_found, std::string_view item_unidentified_name) {
     if (num_gold_found != 0) {
-        engine->_statusBar->setEvent(LSTR_FMT_YOU_FOUND_GOLD_AND_ITEM, num_gold_found, item_unidentified_name);
+        engine->_statusBar->setEvent(LSTR_YOU_FOUND_D_GOLD_AND_AN_ITEM_S, num_gold_found, item_unidentified_name);
     } else {
-        engine->_statusBar->setEvent(LSTR_FMT_YOU_FOUND_ITEM, item_unidentified_name);
+        engine->_statusBar->setEvent(LSTR_YOU_FOUND_AN_ITEM_S, item_unidentified_name);
     }
 }
 
 
 //----- (00426A5A) --------------------------------------------------------
 void Actor::LootActor() {
-    ItemGen Dst;         // [sp+Ch] [bp-2Ch]@1
+    Item Dst;         // [sp+Ch] [bp-2Ch]@1
     bool itemFound;      // [sp+30h] [bp-8h]@1
 
     pParty->placeHeldItemInInventoryOrDrop();
@@ -3568,33 +3574,26 @@ void Actor::LootActor() {
     }
     if (this->carriedItemId != ITEM_NULL) {
         Dst.Reset();
-        Dst.uItemID = this->carriedItemId;
+        Dst.itemId = this->carriedItemId;
+        Dst.postGenerate(ITEM_SOURCE_MONSTER);
 
-        StatusBarItemFound(foundGold, pItemTable->pItems[Dst.uItemID].pUnidentifiedName);
+        StatusBarItemFound(foundGold, pItemTable->items[Dst.itemId].unidentifiedName);
 
-        if (Dst.isWand()) {
-            Dst.uNumCharges = grng->random(6) + Dst.GetDamageMod() + 1;
-            Dst.uMaxCharges = Dst.uNumCharges;
-        }
-        if (Dst.isPotion() && Dst.uItemID != ITEM_POTION_BOTTLE) {
-            Dst.potionPower = 2 * grng->random(4) + 2;
-        }
-        pItemTable->SetSpecialBonus(&Dst);
         if (!pParty->addItemToParty(&Dst)) {
-            pParty->setHoldingItem(&Dst);
+            pParty->setHoldingItem(Dst);
         }
         this->carriedItemId = ITEM_NULL;
-        if (this->items[0].uItemID != ITEM_NULL) {
+        if (this->items[0].itemId != ITEM_NULL) {
             if (!pParty->addItemToParty(&this->items[0])) {
                 pParty->placeHeldItemInInventoryOrDrop();
-                pParty->setHoldingItem(&this->items[0]);
+                pParty->setHoldingItem(this->items[0]);
             }
             this->items[0].Reset();
         }
-        if (this->items[1].uItemID != ITEM_NULL) {
+        if (this->items[1].itemId != ITEM_NULL) {
             if (!pParty->addItemToParty(&this->items[1])) {
                 pParty->placeHeldItemInInventoryOrDrop();
-                pParty->setHoldingItem(&this->items[1]);
+                pParty->setHoldingItem(this->items[1]);
             }
             this->items[1].Reset();
         }
@@ -3602,14 +3601,14 @@ void Actor::LootActor() {
         return;
     }
     if (this->ActorHasItem()) {
-        if (this->items[3].uItemID != ITEM_NULL) {
+        if (this->items[3].itemId != ITEM_NULL) {
             Dst = this->items[3];
             this->items[3].Reset();
 
-            StatusBarItemFound(foundGold, pItemTable->pItems[Dst.uItemID].pUnidentifiedName);
+            StatusBarItemFound(foundGold, pItemTable->items[Dst.itemId].unidentifiedName);
 
             if (!pParty->addItemToParty(&Dst)) {
-                pParty->setHoldingItem(&Dst);
+                pParty->setHoldingItem(Dst);
             }
             itemFound = true;
         }
@@ -3617,26 +3616,26 @@ void Actor::LootActor() {
         if (grng->random(100) < this->monsterInfo.treasureDropChance && this->monsterInfo.treasureLevel != ITEM_TREASURE_LEVEL_INVALID) {
             pItemTable->generateItem(this->monsterInfo.treasureLevel, this->monsterInfo.treasureType, &Dst);
 
-            StatusBarItemFound(foundGold, pItemTable->pItems[Dst.uItemID].pUnidentifiedName);
+            StatusBarItemFound(foundGold, pItemTable->items[Dst.itemId].unidentifiedName);
 
             if (!pParty->addItemToParty(&Dst)) {
-                pParty->setHoldingItem(&Dst);
+                pParty->setHoldingItem(Dst);
             }
             itemFound = true;
         }
     }
-    if (this->items[0].uItemID != ITEM_NULL) {
+    if (this->items[0].itemId != ITEM_NULL) {
         if (!pParty->addItemToParty(&this->items[0])) {
             pParty->placeHeldItemInInventoryOrDrop();
-            pParty->setHoldingItem(&this->items[0]);
+            pParty->setHoldingItem(this->items[0]);
             itemFound = true;
         }
         this->items[0].Reset();
     }
-    if (this->items[1].uItemID != ITEM_NULL) {
+    if (this->items[1].itemId != ITEM_NULL) {
         if (!pParty->addItemToParty(&this->items[1])) {
             pParty->placeHeldItemInInventoryOrDrop();
-            pParty->setHoldingItem(&this->items[1]);
+            pParty->setHoldingItem(this->items[1]);
             itemFound = true;
         }
         this->items[1].Reset();
@@ -4537,6 +4536,10 @@ void evaluateAoeDamage() {
             pSpriteObj = &pSpriteObjects[attackerId];
             attackerType = pSpriteObjects[attackerId].spell_caster_pid.type();
             attackerId = pSpriteObjects[attackerId].spell_caster_pid.id();
+            // This is triggered by the rock blast decorations Armageddon spawns.
+            // If let through, they can trigger the assert near the end of the loop.
+            if (pSpriteObj->uType == SPRITE_SPELL_EARTH_ROCK_BLAST_IMPACT && attackerType == OBJECT_None)
+                continue;
         }
 
         if (attack.isMelee) {

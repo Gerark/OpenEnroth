@@ -63,9 +63,6 @@ struct ODMRenderParams {
     int outdoor_no_mist;
     int building_gamme = 0;
     int terrain_gamma = 0;
-
-    unsigned int uMapGridCellX = 0;  // moved from 157 struct IndoorCamera::0C
-    unsigned int uMapGridCellY = 0;  // moved from 157 struct IndoorCamera::10
 };
 extern ODMRenderParams *pODMRenderParams;
 
@@ -78,6 +75,8 @@ struct RenderVertexSoft {
     float u = 0;
     float v = 0;
     float flt_2C = 0;
+
+    friend bool operator==(const RenderVertexSoft &l, const RenderVertexSoft &r) = default;
 };
 
 struct RenderVertexD3D3 {
@@ -126,7 +125,6 @@ struct RenderBillboardD3D {
 // TODO(pskelton): Simplify/remove/combine different billboard structs
 struct SoftwareBillboard {
     void *pTarget;
-    int *pTargetZ;
     int screen_space_x;
     int screen_space_y;
     int screen_space_z;

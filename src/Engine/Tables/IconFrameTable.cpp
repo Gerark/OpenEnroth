@@ -1,51 +1,46 @@
-#include "Engine/Tables/IconFrameTable.h"
+#include "IconFrameTable.h"
+
+#include <cassert>
 
 #include "Engine/AssetsManager.h"
 
 #include "Utility/String/Ascii.h"
 
-GraphicsImage *Icon::GetTexture() {
-    if (!this->img) {
-        this->img = assets->getImage_ColorKey(this->pTextureName);
-    }
+IconFrameTable *pIconsFrameTable = nullptr;
 
-    return this->img;
-}
-
-Icon *IconFrameTable::GetIcon(unsigned int idx) {
-    if (idx < pIcons.size()) return &this->pIcons[idx];
-    return nullptr;
-}
-
-Icon *IconFrameTable::GetIcon(const char *pIconName) {
-    for (unsigned int i = 0; i < pIcons.size(); i++) {
-        if (ascii::noCaseEquals(pIconName, this->pIcons[i].GetAnimationName()))
-            return &this->pIcons[i];
-    }
-    return nullptr;
-}
-
-//----- (00494F3A) --------------------------------------------------------
-unsigned int IconFrameTable::FindIcon(std::string_view pIconName) {
-    for (size_t i = 0; i < pIcons.size(); i++) {
-        if (ascii::noCaseEquals(pIconName, this->pIcons[i].GetAnimationName()))
+int IconFrameTable::animationId(std::string_view animationName) const {
+    for (size_t i = 0; i < _frames.size(); i++)
+        if (ascii::noCaseEquals(animationName, this->_frames[i].animationName))
             return i;
-    }
-    return 0;
+    return -1;
 }
 
-//----- (00494F70) --------------------------------------------------------
-Icon *IconFrameTable::GetFrame(unsigned int uIconID, Duration frame_time) {
-    if (this->pIcons[uIconID].uFlags & 1 && this->pIcons[uIconID].GetAnimLength()) {
-        Duration t = frame_time;
+Duration IconFrameTable::animationLength(int animationId) const {
+    const IconFrameData &icon = _frames[animationId];
+    assert(icon.flags & FRAME_FIRST);
+    return icon.animationLength;
+}
 
-        t = t % this->pIcons[uIconID].GetAnimLength();
+GraphicsImage *IconFrameTable::animationFrame(int animationId, Duration frameTime) {
+    IconFrameData &icon = _frames[animationId];
+    assert(icon.flags & FRAME_FIRST);
 
-        int i;
-        for (i = uIconID; t >= this->pIcons[i].GetAnimTime(); i++)
-            t -= this->pIcons[i].GetAnimTime();
-        return &this->pIcons[i];
-    } else {
-        return &this->pIcons[uIconID];
-    }
+    if (!(icon.flags & FRAME_HAS_MORE))
+        return loadTexture(animationId);
+
+    assert(icon.animationLength);
+    Duration t = frameTime % icon.animationLength;
+
+    int i;
+    for (i = animationId; t >= _frames[i].frameLength; i++)
+        t -= _frames[i].frameLength;
+    return loadTexture(i);
+}
+
+GraphicsImage *IconFrameTable::loadTexture(int frameId) {
+    assert(_textures.size() == _frames.size());
+
+    if (!_textures[frameId])
+        _textures[frameId] = assets->getImage_ColorKey(_frames[frameId].textureName);
+    return _textures[frameId];
 }

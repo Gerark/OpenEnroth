@@ -25,8 +25,8 @@
 #include "Engine/Party.h"
 #include "Engine/PriceCalculator.h"
 #include "Engine/EngineIocContainer.h"
-#include "Engine/Tables/IconFrameTable.h"
 #include "Engine/Tables/AwardTable.h"
+#include "Engine/Tables/IconFrameTable.h"
 #include "Engine/Time/Timer.h"
 #include "Engine/MapInfo.h"
 
@@ -62,8 +62,7 @@ GUIWindow_House *window_SpeakInHouse;
 GUIWindow_MessageScroll *pGUIWindow_ScrollWindow; // reading a message scroll
 GUIWindow *ptr_507BC8;  // screen 19 - not used?
 TargetedSpellUI *pGUIWindow_CastTargetedSpell;
-GUIWindow *pGameOverWindow; // UIMSG_ShowGameOverWindow
-bool bGameOverWindowCheckExit{ false }; // TODO(pskelton): contain
+GUIWindow_GameOver *pGameOverWindow; // UIMSG_ShowGameOverWindow
 GUIWindow_BranchlessDialogue *pGUIWindow_BranchlessDialogue; // branchless dialougue
 
 enum WindowType current_character_screen_window = WINDOW_CharacterWindow_Stats;
@@ -224,7 +223,7 @@ void GUIWindow::DrawMessageBox(bool inside_game_viewport) {
         w = renDims.h;
     }
 
-    Pointi cursor = mouse->GetCursorPos();
+    Pointi cursor = mouse->position();
     if ((int)this->uFrameX >= x) {
         if ((int)(this->uFrameWidth + this->uFrameX) > z) {
             this->uFrameX = z - this->uFrameWidth;
@@ -287,7 +286,7 @@ void GUIWindow::DrawMessageBox(bool inside_game_viewport) {
 std::string MakeDateTimeString(Duration time) {
     CivilDuration d = time.toCivilDuration();
 
-    std::string str = "";
+    std::string str;
     if (d.days) {
         auto day_str = localization->GetString(LSTR_DAYS);
         if (d.days <= 1) day_str = localization->GetString(LSTR_DAY_CAPITALIZED);
@@ -316,6 +315,9 @@ std::string MakeDateTimeString(Duration time) {
         str += fmt::format("{} {} ", d.seconds, seconds_str);
     }
 
+    if (!str.empty() && str.back() == ' ')
+        str.pop_back();
+
     return str;
 }
 
@@ -327,6 +329,9 @@ void GUIWindow::DrawShops_next_generation_time_string(Duration time) {
 
 //----- (0044D406) --------------------------------------------------------
 void GUIWindow::DrawTitleText(GUIFont *pFont, int horizontalMargin, int verticalMargin, Color color, std::string_view text, int lineSpacing) {
+    if (engine->callObserver) {
+        engine->callObserver->notify(CALL_GUIWINDOW_DRAWTEXT, std::string(text));
+    }
     int width = this->uFrameWidth - horizontalMargin;
     std::string resString = pFont->FitTextInAWindow(text, this->uFrameWidth, horizontalMargin);
     std::istringstream stream(resString);
@@ -415,10 +420,12 @@ void GUIWindow::DrawFlashingInputCursor(int uX, int uY, GUIFont *a2) {
 
 GUIWindow::GUIWindow() {
     this->mouse = EngineIocContainer::ResolveMouse();
+    this->mouse->SetMouseLook(false);
 }
 
 GUIWindow::GUIWindow(WindowType windowType, Pointi position, Sizei dimensions, std::string_view hint): eWindowType(windowType) {
     this->mouse = EngineIocContainer::ResolveMouse();
+    this->mouse->SetMouseLook(false);
 
     logger->trace("New window: {}", toString(windowType));
     lWindowList.push_front(this);
@@ -454,6 +461,8 @@ void OnButtonClick::Update() {
         _button->DrawLabel(sHint, assets->pFontCreate.get(), colorTable.White);
     }
     Release();
+
+    delete this;
 }
 
 void OnButtonClick2::Update() {
@@ -470,6 +479,8 @@ void OnButtonClick2::Update() {
         _button->DrawLabel(sHint, assets->pFontCreate.get(), colorTable.White);
     }
     Release();
+
+    delete this;
 }
 
 void OnButtonClick3::Update() {
@@ -480,6 +491,8 @@ void OnButtonClick3::Update() {
         _button->DrawLabel(sHint, assets->pFontCreate.get(), colorTable.White);
     }
     Release();
+
+    delete this;
 }
 
 void OnButtonClick4::Update() {
@@ -489,6 +502,8 @@ void OnButtonClick4::Update() {
     render->DrawTextureNew(uFrameX / 640.0f, uFrameY / 480.0f, _button->vTextures[1]);
 
     Release();
+
+    delete this;
 }
 
 void OnSaveLoad::Update() {
@@ -506,6 +521,8 @@ void OnSaveLoad::Update() {
     } else {
         engine->_messageQueue->addMessageCurrentFrame(UIMSG_LoadGame, 0, 0);
     }
+
+    delete this;
 }
 
 void OnCancel::Update() {
@@ -519,6 +536,8 @@ void OnCancel::Update() {
     Release();
 
     engine->_messageQueue->addMessageCurrentFrame(UIMSG_Escape, 0, 0);
+
+    delete this;
 }
 
 void OnCancel2::Update() {
@@ -532,6 +551,8 @@ void OnCancel2::Update() {
     Release();
 
     engine->_messageQueue->addMessageCurrentFrame(UIMSG_Escape, 0, 0);
+
+    delete this;
 }
 
 void OnCancel3::Update() {
@@ -546,6 +567,8 @@ void OnCancel3::Update() {
     Release();
 
     engine->_messageQueue->addMessageCurrentFrame(UIMSG_Escape, 0, 0);
+
+    delete this;
 }
 
 void GUI_UpdateWindows() {
@@ -569,7 +592,7 @@ void GUI_UpdateWindows() {
 
     if (isHoldingMouseRightButton()) {
         std::shared_ptr<Io::Mouse> mouse = EngineIocContainer::ResolveMouse();
-        UI_OnMouseRightClick(mouse->GetCursorPos().x, mouse->GetCursorPos().y);
+        UI_OnMouseRightClick(mouse->position());
     }
 }
 
@@ -617,8 +640,8 @@ void SetUserInterface(PartyAlignment align) {
         game_ui_playerbuff_hammerhands = assets->getImage_ColorKey("isg-03-c");
         game_ui_playerbuff_pain_reflection = assets->getImage_ColorKey("isg-04-c");
 
-        pUIAnim_WizardEye->icon = pIconsFrameTable->GetIcon("wizeyeC");
-        pUIAnum_Torchlight->icon = pIconsFrameTable->GetIcon("torchC");
+        game_ui_wizardEye = pIconsFrameTable->animationId("wizeyeC");
+        game_ui_torchLight = pIconsFrameTable->animationId("torchC");
 
         game_ui_evtnpc = assets->getImage_ColorKey("evtnpc-c");
         ui_character_inventory_background = assets->getImage_ColorKey("fr_inven-c");
@@ -666,8 +689,8 @@ void SetUserInterface(PartyAlignment align) {
         game_ui_playerbuff_hammerhands = assets->getImage_ColorKey("isg-03-a");
         game_ui_playerbuff_pain_reflection = assets->getImage_ColorKey("isg-04-a");
 
-        pUIAnim_WizardEye->icon = pIconsFrameTable->GetIcon("wizeyeA");
-        pUIAnum_Torchlight->icon = pIconsFrameTable->GetIcon("torchA");
+        game_ui_wizardEye = pIconsFrameTable->animationId("wizeyeA");
+        game_ui_torchLight = pIconsFrameTable->animationId("torchA");
 
         game_ui_evtnpc = assets->getImage_ColorKey("evtnpc");
         ui_character_inventory_background = assets->getImage_ColorKey("fr_inven");
@@ -715,8 +738,8 @@ void SetUserInterface(PartyAlignment align) {
         game_ui_playerbuff_hammerhands = assets->getImage_ColorKey("isg-03-b");
         game_ui_playerbuff_pain_reflection = assets->getImage_ColorKey("isg-04-b");
 
-        pUIAnim_WizardEye->icon = pIconsFrameTable->GetIcon("wizeyeB");
-        pUIAnum_Torchlight->icon = pIconsFrameTable->GetIcon("torchB");
+        game_ui_wizardEye = pIconsFrameTable->animationId("wizeyeB");
+        game_ui_torchLight = pIconsFrameTable->animationId("torchB");
 
         game_ui_evtnpc = assets->getImage_ColorKey("evtnpc-b");
         ui_character_inventory_background = assets->getImage_ColorKey("fr_inven-b");
@@ -760,7 +783,7 @@ Color GetSkillColor(CharacterClass uPlayerClass, CharacterSkillType uPlayerSkill
     return ui_character_skillinfo_cant_learn;
 }
 
-std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *npc, ItemGen *item, HouseId houseId, ShopScreen shop_screen, Time *a6) {
+std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *npc, Item *item, HouseId houseId, ShopScreen shop_screen, Time *a6) {
     std::string v1;
     Character *pPlayer;       // ebx@3
     int v29;               // eax@68
@@ -793,7 +816,7 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
             case 5:
                 time = pParty->GetPlayingTime().toCivilTime();
                 if (time.hour >= 11 && time.hour < 20) {
-                    result += localization->GetString(LSTR_DAY);
+                    result += localization->GetString(LSTR_DAY_LOWERCASE);
                 } else if (time.hour >= 5 && time.hour < 11) {
                     result += localization->GetString(LSTR_MORNING);
                 } else {
@@ -809,9 +832,9 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
                 break;
             case 7:
                 if (pPlayer->uSex == SEX_FEMALE)
-                    result += localization->GetString(LSTR_LADY);
+                    result += localization->GetString(LSTR_LADY_CAPITALIZED);
                 else
-                    result += localization->GetString(LSTR_SIR);
+                    result += localization->GetString(LSTR_SIR_CAPITALIZED);
                 break;
             case 8:
                 for (int bit : possibleAddressingAwardBits) {
@@ -835,7 +858,7 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
                 break;
             case 10:
                 if (pPlayer->uSex == SEX_FEMALE)
-                    result += localization->GetString(LSTR_LADY);
+                    result += localization->GetString(LSTR_LADY_CAPITALIZED);
                 else
                     result += localization->GetString(LSTR_LORD);
                 break;
@@ -895,19 +918,24 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
                 break;
 
             case 25:  // base prices
-                v29 = PriceCalculator::baseItemBuyingPrice(item->GetValue(), buildingTable[houseId].fPriceMultiplier);
                 switch (shop_screen) {
+                case SHOP_SCREEN_INVALID:
+                    assert(false);
+                    [[fallthrough]];
+                case SHOP_SCREEN_BUY:
+                    v29 = PriceCalculator::baseItemBuyingPrice(item->GetValue(), houseTable[houseId].fPriceMultiplier);
+                    break;
                 case SHOP_SCREEN_SELL:
-                    v29 = PriceCalculator::baseItemSellingPrice(item->GetValue(), buildingTable[houseId].fPriceMultiplier);
+                    v29 = PriceCalculator::baseItemSellingPrice(item->GetValue(), houseTable[houseId].fPriceMultiplier);
                     break;
                 case SHOP_SCREEN_IDENTIFY:
-                    v29 = PriceCalculator::baseItemIdentifyPrice(buildingTable[houseId].fPriceMultiplier);
+                    v29 = PriceCalculator::baseItemIdentifyPrice(houseTable[houseId].fPriceMultiplier);
                     break;
                 case SHOP_SCREEN_REPAIR:
-                    v29 = PriceCalculator::baseItemRepairPrice(item->GetValue(), buildingTable[houseId].fPriceMultiplier);
+                    v29 = PriceCalculator::baseItemRepairPrice(item->GetValue(), houseTable[houseId].fPriceMultiplier);
                     break;
                 case SHOP_SCREEN_SELL_FOR_CHEAP:
-                    v29 = PriceCalculator::baseItemSellingPrice(item->GetValue(), buildingTable[houseId].fPriceMultiplier) / 2;
+                    v29 = PriceCalculator::baseItemSellingPrice(item->GetValue(), houseTable[houseId].fPriceMultiplier) / 2;
                     break;
                 }
                 v1 = fmt::format("{}", v29);
@@ -915,9 +943,9 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
                 break;
 
             case 27:  // actual price
-                v29 = PriceCalculator::itemBuyingPriceForPlayer(pPlayer, item->GetValue(), buildingTable[houseId].fPriceMultiplier);
+                v29 = PriceCalculator::itemBuyingPriceForPlayer(pPlayer, item->GetValue(), houseTable[houseId].fPriceMultiplier);
                 if (shop_screen == SHOP_SCREEN_SELL) {
-                    v29 = PriceCalculator::itemSellingPriceForPlayer(pPlayer, *item, buildingTable[houseId].fPriceMultiplier);
+                    v29 = PriceCalculator::itemSellingPriceForPlayer(pPlayer, *item, houseTable[houseId].fPriceMultiplier);
                     v1 = fmt::format("{}", v29);
                     result += v1;
                     break;
@@ -926,11 +954,11 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
                     if (shop_screen == SHOP_SCREEN_REPAIR) {
                     v29 = PriceCalculator::itemRepairPriceForPlayer(
                         pPlayer, item->GetValue(),
-                        buildingTable[houseId].fPriceMultiplier);
+                        houseTable[houseId].fPriceMultiplier);
                     } else {
                         if (shop_screen == SHOP_SCREEN_SELL_FOR_CHEAP) {
                             // TODO(captainurist): encapsulate this logic in PriceCalculator
-                            v29 = PriceCalculator::itemSellingPriceForPlayer(pPlayer, *item, buildingTable[houseId].fPriceMultiplier) / 2;
+                            v29 = PriceCalculator::itemSellingPriceForPlayer(pPlayer, *item, houseTable[houseId].fPriceMultiplier) / 2;
                             if (!v29)  // cannot be 0
                                 v29 = 1;
                             v1 = fmt::format("{}", v29);
@@ -942,16 +970,16 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
                     result += v1;
                     break;
                 }
-                v1 = fmt::format("{}", PriceCalculator::itemIdentificationPriceForPlayer(pPlayer, buildingTable[houseId].fPriceMultiplier));
+                v1 = fmt::format("{}", PriceCalculator::itemIdentificationPriceForPlayer(pPlayer, houseTable[houseId].fPriceMultiplier));
                 result += v1;
                 break;
 
             case 28:  // shop type - blacksmith ect..
-                result += buildingTable[houseId].pProprieterTitle;
+                result += houseTable[houseId].pProprieterTitle;
                 break;
 
             case 29:  // identify cost
-                v1 = fmt::format("{}", PriceCalculator::itemIdentificationPriceForPlayer(pPlayer, buildingTable[houseId].fPriceMultiplier));
+                v1 = fmt::format("{}", PriceCalculator::itemIdentificationPriceForPlayer(pPlayer, houseTable[houseId].fPriceMultiplier));
                 result += v1;
                 break;
             case 30:
@@ -961,7 +989,7 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
                     break;
                 }
                 time = a6->toCivilTime();
-                result += localization->FormatString(LSTR_FMT_S_D_D, localization->GetMonthName(time.month - 1), time.day, time.year);
+                result += localization->FormatString(LSTR_S_D_D, localization->GetMonthName(time.month - 1), time.day, time.year);
                 break;
             case 31:
             case 32:
@@ -984,7 +1012,7 @@ std::string BuildDialogueString(std::string_view str, int uPlayerID, NPCData *np
                 }
 
                 time = pParty->PartyTimes._s_times[mask - 51].toCivilTime();
-                result += localization->FormatString(LSTR_FMT_S_D_D, localization->GetMonthName(time.month - 1), time.day, time.year);
+                result += localization->FormatString(LSTR_S_D_D, localization->GetMonthName(time.month - 1), time.day, time.year);
                 break;
             }
         }
@@ -1023,7 +1051,12 @@ void WindowManager::DeleteAllVisibleWindows() {
 
     current_screen_type = SCREEN_GAME;
     engine->_messageQueue->clearAll();
+
+    // TODO(captainurist): Unload() un-pauses the event timer, which is not always the right thing to do.
+    //                     So we hack. Find a better way.
+    bool wasPaused = pEventTimer->isPaused();
     pMediaPlayer->Unload();
+    pEventTimer->setPaused(wasPaused);
 }
 
 void MainMenuUI_LoadFontsAndSomeStuff() {
@@ -1050,8 +1083,8 @@ static void LoadPartyBuffIcons() {
         party_buff_icons[i] = assets->getImage_Paletted(fmt::format("isn-{:02}", i + 1));
     }
 
-    uIconIdx_FlySpell = pIconsFrameTable->FindIcon("spell21");
-    uIconIdx_WaterWalk = pIconsFrameTable->FindIcon("spell27");
+    uIconIdx_FlySpell = pIconsFrameTable->animationId("spell21");
+    uIconIdx_WaterWalk = pIconsFrameTable->animationId("spell27");
 }
 
 void UI_Create() {
@@ -1109,7 +1142,7 @@ void UI_Create() {
     game_ui_tome_autonotes = assets->getImage_ColorKey("ib-td2-A");
     pBtn_Autonotes = pPrimaryWindow->CreateButton({527, 353}, game_ui_tome_autonotes->size(), 1, 0,
                                                   UIMSG_OpenAutonotes, 0, Io::InputAction::Autonotes,
-                                                  localization->GetString(LSTR_AUTONOTES), { game_ui_tome_autonotes });
+                                                  localization->GetString(LSTR_AUTO_NOTES), { game_ui_tome_autonotes });
 
     game_ui_tome_maps = assets->getImage_ColorKey("ib-td3-A");
     pBtn_Maps = pPrimaryWindow->CreateButton({546, 353}, game_ui_tome_maps->size(), 1, 0,
@@ -1168,7 +1201,7 @@ void UI_Create() {
 
 
 std::string NameAndTitle(std::string_view name, std::string_view title) {
-    return localization->FormatString(LSTR_FMT_S_THE_S, name, title);
+    return localization->FormatString(LSTR_S_THE_S, name, title);
 }
 
 

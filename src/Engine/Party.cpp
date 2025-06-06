@@ -20,7 +20,7 @@
 #include "Engine/Spells/SpellEnumFunctions.h"
 #include "Engine/Tables/ItemTable.h"
 #include "Engine/Tables/IconFrameTable.h"
-#include "Engine/Tables/CharacterFrameTable.h"
+#include "Engine/Tables/PortraitFrameTable.h"
 #include "Engine/Time/Time.h"
 #include "Engine/TurnEngine/TurnEngine.h"
 #include "Engine/OurMath.h"
@@ -43,23 +43,6 @@ using Io::Mouse;
 Party *pParty = nullptr;
 
 ActionQueue *pPartyActionQueue = new ActionQueue;
-
-struct {
-    UIAnimation _pUIAnim_Food;
-    UIAnimation _pUIAnim_Gold;
-    UIAnimation _pUIAnum_Torchlight;
-    UIAnimation _pUIAnim_WizardEye;
-} _uianim;
-
-UIAnimation *pUIAnim_Food = &_uianim._pUIAnim_Food;
-UIAnimation *pUIAnim_Gold = &_uianim._pUIAnim_Gold;
-UIAnimation *pUIAnum_Torchlight = &_uianim._pUIAnum_Torchlight;
-UIAnimation *pUIAnim_WizardEye = &_uianim._pUIAnim_WizardEye;
-
-std::array<UIAnimation *, 4>
-    pUIAnims =  // was struct byt defined as class
-    {&_uianim._pUIAnim_Food, &_uianim._pUIAnim_Gold,
-     &_uianim._pUIAnum_Torchlight, &_uianim._pUIAnim_WizardEye};
 
 //----- (0044A56A) --------------------------------------------------------
 int Party::CountHirelings() {  // non hired followers
@@ -206,10 +189,13 @@ int Party::canActCount() const {
     return result;
 }
 
-void Party::setHoldingItem(ItemGen *pItem) {
+void Party::setHoldingItem(const Item &item, Pointi offset) {
+    assert(offset.x <= 9 && offset.y <= 9); // max item size grid offset is 9 see itemOffset in ItemGrid.cpp
+
     placeHeldItemInInventoryOrDrop();
-    pPickedItem = *pItem;
-    mouse->SetCursorBitmapFromItemID(pPickedItem.uItemID);
+    pPickedItem = item;
+    mouse->SetCursorBitmapFromItemID(pPickedItem.itemId);
+    mouse->pickedItemOffset = offset;
 }
 
 void Party::setActiveToFirstCanAct() {  // added to fix some nzi problems entering shops
@@ -263,8 +249,8 @@ void Party::switchToNextActiveCharacter() {
     for (int i = 0; i < this->pCharacters.size(); i++) {
         if (this->pCharacters[i].CanAct() &&
             !this->pCharacters[i].timeToRecovery) {
-            if (v12 == 0 || this->pCharacters[i]._statBonuses[CHARACTER_ATTRIBUTE_SPEED] > v8) {
-                v8 = this->pCharacters[i]._statBonuses[CHARACTER_ATTRIBUTE_SPEED];
+            if (v12 == 0 || this->pCharacters[i]._statBonuses[ATTRIBUTE_SPEED] > v8) {
+                v8 = this->pCharacters[i]._statBonuses[ATTRIBUTE_SPEED];
                 v12 = i + 1;
             }
         }
@@ -275,24 +261,12 @@ void Party::switchToNextActiveCharacter() {
 
 bool Party::hasItem(ItemId uItemID) {
     for (Character &player : this->pCharacters) {
-        for (ItemGen &item : player.pInventoryItemList) {
-            if (item.uItemID == uItemID)
+        for (Item &item : player.pInventoryItemList) {
+            if (item.itemId == uItemID)
                 return true;
         }
     }
     return false;
-}
-
-void ui_play_gold_anim() {
-    pUIAnim_Gold->uAnimTime = 0;
-    pUIAnim_Gold->uAnimLength = pUIAnim_Gold->icon->GetAnimLength();
-    pAudioPlayer->playUISound(SOUND_gold01);
-}
-
-void ui_play_food_anim() {
-    pUIAnim_Food->uAnimTime = 0;
-    pUIAnim_Food->uAnimLength = pUIAnim_Food->icon->GetAnimLength();
-    // pAudioPlayer->PlaySound(SOUND_eat, 0, 0, -1, 0, 0);
 }
 
 //----- (00492AD5) --------------------------------------------------------
@@ -304,7 +278,7 @@ void Party::SetFood(int amount) {
 
     uNumFoodRations = amount;
 
-    ui_play_food_anim();
+    // pAudioPlayer->PlaySound(SOUND_eat, 0, 0, -1, 0, 0);
 }
 
 //----- (00492B03) --------------------------------------------------------
@@ -340,7 +314,8 @@ void Party::SetGold(int amount, bool silent) {
 
     uNumGold = amount;
 
-    if (!silent) ui_play_gold_anim();
+    if (!silent)
+        pAudioPlayer->playUISound(SOUND_gold01);
 }
 
 void Party::AddGold(int amount) {
@@ -403,7 +378,7 @@ unsigned int Party::getPartyFame() {
 
 void Party::createDefaultParty(bool bDebugGiveItems) {
     signed int uNumPlayers;  // [sp+18h] [bp-28h]@1
-    ItemGen Dst;             // [sp+1Ch] [bp-24h]@10
+    Item Dst;             // [sp+1Ch] [bp-24h]@10
 
     pHireling1Name[0] = 0;
     pHireling2Name[0] = 0;
@@ -411,69 +386,69 @@ void Party::createDefaultParty(bool bDebugGiveItems) {
     pHirelings.fill(NPCData());
     pHirelingsSacrifice.fill(NPCSacrificeStatus());
 
-    this->pCharacters[0].name = localization->GetString(LSTR_PC_NAME_ZOLTAN);
+    this->pCharacters[0].name = localization->GetString(LSTR_NAME_ZOLTAN);
     this->pCharacters[0].uPrevFace = 17;
     this->pCharacters[0].uCurrentFace = 17;
     this->pCharacters[0].uPrevVoiceID = 17;
     this->pCharacters[0].uVoiceID = 17;
-    this->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_MIGHT] = 30;
-    this->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_INTELLIGENCE] = 5;
-    this->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_PERSONALITY] = 5;
-    this->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_ENDURANCE] = 13;
-    this->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_ACCURACY] = 13;
-    this->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_SPEED] = 14;
-    this->pCharacters[0]._stats[CHARACTER_ATTRIBUTE_LUCK] = 7;
+    this->pCharacters[0]._stats[ATTRIBUTE_MIGHT] = 30;
+    this->pCharacters[0]._stats[ATTRIBUTE_INTELLIGENCE] = 5;
+    this->pCharacters[0]._stats[ATTRIBUTE_PERSONALITY] = 5;
+    this->pCharacters[0]._stats[ATTRIBUTE_ENDURANCE] = 13;
+    this->pCharacters[0]._stats[ATTRIBUTE_ACCURACY] = 13;
+    this->pCharacters[0]._stats[ATTRIBUTE_SPEED] = 14;
+    this->pCharacters[0]._stats[ATTRIBUTE_LUCK] = 7;
     this->pCharacters[0].pActiveSkills[CHARACTER_SKILL_LEATHER] = CombinedSkillValue::novice();
     this->pCharacters[0].pActiveSkills[CHARACTER_SKILL_ARMSMASTER] = CombinedSkillValue::novice();
     this->pCharacters[0].pActiveSkills[CHARACTER_SKILL_BOW] = CombinedSkillValue::novice();
     this->pCharacters[0].pActiveSkills[CHARACTER_SKILL_SWORD] = CombinedSkillValue::novice();
 
-    this->pCharacters[1].name = localization->GetString(LSTR_PC_NAME_RODERIC);
+    this->pCharacters[1].name = localization->GetString(LSTR_NAME_RODERICK);
     this->pCharacters[1].uPrevFace = 3;
     this->pCharacters[1].uCurrentFace = 3;
     this->pCharacters[1].uPrevVoiceID = 3;
     this->pCharacters[1].uVoiceID = 3;
-    this->pCharacters[1]._stats[CHARACTER_ATTRIBUTE_MIGHT] = 13;
-    this->pCharacters[1]._stats[CHARACTER_ATTRIBUTE_INTELLIGENCE] = 9;
-    this->pCharacters[1]._stats[CHARACTER_ATTRIBUTE_PERSONALITY] = 9;
-    this->pCharacters[1]._stats[CHARACTER_ATTRIBUTE_ENDURANCE] = 13;
-    this->pCharacters[1]._stats[CHARACTER_ATTRIBUTE_ACCURACY] = 13;
-    this->pCharacters[1]._stats[CHARACTER_ATTRIBUTE_SPEED] = 13;
-    this->pCharacters[1]._stats[CHARACTER_ATTRIBUTE_LUCK] = 13;
+    this->pCharacters[1]._stats[ATTRIBUTE_MIGHT] = 13;
+    this->pCharacters[1]._stats[ATTRIBUTE_INTELLIGENCE] = 9;
+    this->pCharacters[1]._stats[ATTRIBUTE_PERSONALITY] = 9;
+    this->pCharacters[1]._stats[ATTRIBUTE_ENDURANCE] = 13;
+    this->pCharacters[1]._stats[ATTRIBUTE_ACCURACY] = 13;
+    this->pCharacters[1]._stats[ATTRIBUTE_SPEED] = 13;
+    this->pCharacters[1]._stats[ATTRIBUTE_LUCK] = 13;
     this->pCharacters[1].pActiveSkills[CHARACTER_SKILL_LEATHER] = CombinedSkillValue::novice();
     this->pCharacters[1].pActiveSkills[CHARACTER_SKILL_STEALING] = CombinedSkillValue::novice();
     this->pCharacters[1].pActiveSkills[CHARACTER_SKILL_DAGGER] = CombinedSkillValue::novice();
     this->pCharacters[1].pActiveSkills[CHARACTER_SKILL_TRAP_DISARM] = CombinedSkillValue::novice();
 
-    this->pCharacters[2].name = localization->GetString(LSTR_PC_NAME_SERENA);
+    this->pCharacters[2].name = localization->GetString(LSTR_NAME_SERENA);
     this->pCharacters[2].uPrevFace = 14;
     this->pCharacters[2].uCurrentFace = 14;
     this->pCharacters[2].uPrevVoiceID = 14;
     this->pCharacters[2].uVoiceID = 14;
-    this->pCharacters[2]._stats[CHARACTER_ATTRIBUTE_MIGHT] = 12;
-    this->pCharacters[2]._stats[CHARACTER_ATTRIBUTE_INTELLIGENCE] = 9;
-    this->pCharacters[2]._stats[CHARACTER_ATTRIBUTE_PERSONALITY] = 20;
-    this->pCharacters[2]._stats[CHARACTER_ATTRIBUTE_ENDURANCE] = 22;
-    this->pCharacters[2]._stats[CHARACTER_ATTRIBUTE_ACCURACY] = 7;
-    this->pCharacters[2]._stats[CHARACTER_ATTRIBUTE_SPEED] = 13;
-    this->pCharacters[2]._stats[CHARACTER_ATTRIBUTE_LUCK] = 7;
+    this->pCharacters[2]._stats[ATTRIBUTE_MIGHT] = 12;
+    this->pCharacters[2]._stats[ATTRIBUTE_INTELLIGENCE] = 9;
+    this->pCharacters[2]._stats[ATTRIBUTE_PERSONALITY] = 20;
+    this->pCharacters[2]._stats[ATTRIBUTE_ENDURANCE] = 22;
+    this->pCharacters[2]._stats[ATTRIBUTE_ACCURACY] = 7;
+    this->pCharacters[2]._stats[ATTRIBUTE_SPEED] = 13;
+    this->pCharacters[2]._stats[ATTRIBUTE_LUCK] = 7;
     this->pCharacters[2].pActiveSkills[CHARACTER_SKILL_ALCHEMY] = CombinedSkillValue::novice();
     this->pCharacters[2].pActiveSkills[CHARACTER_SKILL_LEATHER] = CombinedSkillValue::novice();
     this->pCharacters[2].pActiveSkills[CHARACTER_SKILL_BODY] = CombinedSkillValue::novice();
     this->pCharacters[2].pActiveSkills[CHARACTER_SKILL_MACE] = CombinedSkillValue::novice();
 
-    this->pCharacters[3].name = localization->GetString(LSTR_PC_NAME_ALEXIS);
+    this->pCharacters[3].name = localization->GetString(LSTR_NAME_ALEXIS);
     this->pCharacters[3].uPrevFace = 10;
     this->pCharacters[3].uCurrentFace = 10;
     this->pCharacters[3].uPrevVoiceID = 10;
     this->pCharacters[3].uVoiceID = 10;
-    this->pCharacters[3]._stats[CHARACTER_ATTRIBUTE_MIGHT] = 5;
-    this->pCharacters[3]._stats[CHARACTER_ATTRIBUTE_INTELLIGENCE] = 30;
-    this->pCharacters[3]._stats[CHARACTER_ATTRIBUTE_PERSONALITY] = 9;
-    this->pCharacters[3]._stats[CHARACTER_ATTRIBUTE_ENDURANCE] = 13;
-    this->pCharacters[3]._stats[CHARACTER_ATTRIBUTE_ACCURACY] = 13;
-    this->pCharacters[3]._stats[CHARACTER_ATTRIBUTE_SPEED] = 13;
-    this->pCharacters[3]._stats[CHARACTER_ATTRIBUTE_LUCK] = 7;
+    this->pCharacters[3]._stats[ATTRIBUTE_MIGHT] = 5;
+    this->pCharacters[3]._stats[ATTRIBUTE_INTELLIGENCE] = 30;
+    this->pCharacters[3]._stats[ATTRIBUTE_PERSONALITY] = 9;
+    this->pCharacters[3]._stats[ATTRIBUTE_ENDURANCE] = 13;
+    this->pCharacters[3]._stats[ATTRIBUTE_ACCURACY] = 13;
+    this->pCharacters[3]._stats[ATTRIBUTE_SPEED] = 13;
+    this->pCharacters[3]._stats[ATTRIBUTE_LUCK] = 7;
     this->pCharacters[3].pActiveSkills[CHARACTER_SKILL_LEATHER] = CombinedSkillValue::novice();
     this->pCharacters[3].pActiveSkills[CHARACTER_SKILL_AIR] = CombinedSkillValue::novice();
     this->pCharacters[3].pActiveSkills[CHARACTER_SKILL_FIRE] = CombinedSkillValue::novice();
@@ -491,7 +466,7 @@ void Party::createDefaultParty(bool bDebugGiveItems) {
             }
         }
 
-        pCharacter.uExpressionTimePassed = 0_ticks;
+        pCharacter.portraitTimePassed = 0_ticks;
 
         if (bDebugGiveItems) {
             Dst.Reset();
@@ -576,7 +551,7 @@ void Party::createDefaultParty(bool bDebugGiveItems) {
                 }
             }
             for (int i = 0; i < Character::INVENTORY_SLOT_COUNT; i++) {
-                if (pCharacter.pInventoryItemList[i].uItemID != ITEM_NULL) {
+                if (pCharacter.pInventoryItemList[i].itemId != ITEM_NULL) {
                     pCharacter.pInventoryItemList[i].SetIdentified();
                 }
             }
@@ -613,7 +588,7 @@ void Party::Reset() {
     pCharacters[0].uVoiceID = 17;
     pCharacters[0].SetInitialStats();
     pCharacters[0].uSex = pCharacters[0].GetSexByVoice();
-    pCharacters[0].name = localization->GetString(LSTR_PC_NAME_ZOLTAN);
+    pCharacters[0].name = localization->GetString(LSTR_NAME_ZOLTAN);
 
     pCharacters[1].ChangeClass(CLASS_THIEF);
     pCharacters[1].uCurrentFace = 3;
@@ -621,7 +596,7 @@ void Party::Reset() {
     pCharacters[1].uVoiceID = 3;
     pCharacters[1].SetInitialStats();
     pCharacters[1].uSex = pCharacters[1].GetSexByVoice();
-    pCharacters[1].name = localization->GetString(LSTR_PC_NAME_RODERIC);
+    pCharacters[1].name = localization->GetString(LSTR_NAME_RODERICK);
 
     pCharacters[2].ChangeClass(CLASS_CLERIC);
     pCharacters[2].uCurrentFace = 14;
@@ -629,7 +604,7 @@ void Party::Reset() {
     pCharacters[2].uVoiceID = 14;
     pCharacters[2].SetInitialStats();
     pCharacters[2].uSex = pCharacters[3].GetSexByVoice();
-    pCharacters[2].name = localization->GetString(LSTR_PC_NAME_SERENA);
+    pCharacters[2].name = localization->GetString(LSTR_NAME_SERENA);
 
     pCharacters[3].ChangeClass(CLASS_SORCERER);
     pCharacters[3].uCurrentFace = 10;
@@ -637,7 +612,7 @@ void Party::Reset() {
     pCharacters[3].uVoiceID = 10;
     pCharacters[3].SetInitialStats();
     pCharacters[3].uSex = pCharacters[3].GetSexByVoice();
-    pCharacters[3].name = localization->GetString(LSTR_PC_NAME_ALEXIS);
+    pCharacters[3].name = localization->GetString(LSTR_NAME_ALEXIS);
 
     for (Character &player : this->pCharacters) {
         player.timeToRecovery = 0_ticks;
@@ -647,9 +622,9 @@ void Party::Reset() {
             buff.Reset();
         }
 
-        player.expression = CHARACTER_EXPRESSION_NORMAL;
-        player.uExpressionTimePassed = 0_ticks;
-        player.uExpressionTimeLength = Duration::randomRealtimeSeconds(vrng, 1, 3);
+        player.portrait = PORTRAIT_NORMAL;
+        player.portraitTimePassed = 0_ticks;
+        player.portraitTimeLength = Duration::randomRealtimeSeconds(vrng, 1, 3);
     }
 
     for (SpellBuff &buff : this->pPartyBuffs) {
@@ -672,7 +647,7 @@ void Party::Reset() {
 
     PartyTimes.shopBanTimes.fill(Time());
 
-    pPickedItem.uItemID = ITEM_NULL;
+    pPickedItem.itemId = ITEM_NULL;
 }
 
 void Party::yell() {
@@ -722,12 +697,12 @@ void Party::resetCharacterEmotions() {
     for (Character &player : this->pCharacters) {
         Condition condition = player.GetMajorConditionIdx();
         if (condition == CONDITION_GOOD || condition == CONDITION_ZOMBIE) {
-            player.uExpressionTimeLength = 32_ticks;
-            player.expression = CHARACTER_EXPRESSION_NORMAL;
+            player.portraitTimeLength = 32_ticks;
+            player.portrait = PORTRAIT_NORMAL;
         } else {
-            player.uExpressionTimeLength = 0_ticks;
-            player.uExpressionTimePassed = 0_ticks;
-            player.expression = expressionForCondition(condition);
+            player.portraitTimeLength = 0_ticks;
+            player.portraitTimePassed = 0_ticks;
+            player.portrait = portraitForCondition(condition);
         }
     }
 }
@@ -738,61 +713,64 @@ void Party::updateCharactersAndHirelingsEmotions() {
     }
 
     for (Character &player : this->pCharacters) {
-        player.uExpressionTimePassed += pMiscTimer->dt();
+        player.portraitTimePassed += pMiscTimer->dt();
 
         Condition condition = player.GetMajorConditionIdx();
         if (condition == CONDITION_GOOD || condition == CONDITION_ZOMBIE) {
-            if (player.uExpressionTimePassed < player.uExpressionTimeLength)
+            if (player.portrait == PORTRAIT_TALK)
+                player.talkAnimation.update(pMiscTimer->dt());
+
+            if (player.portraitTimePassed < player.portraitTimeLength)
                 continue;
 
-            player.uExpressionTimePassed = 0_ticks;
-            if (player.expression != CHARACTER_EXPRESSION_NORMAL || vrng->random(5)) {
-                player.expression = CHARACTER_EXPRESSION_NORMAL;
-                player.uExpressionTimeLength = Duration::randomRealtimeMilliseconds(vrng, 250, 2250);
+            player.portraitTimePassed = 0_ticks;
+            if (player.portrait != PORTRAIT_NORMAL || vrng->random(5)) {
+                player.portrait = PORTRAIT_NORMAL;
+                player.portraitTimeLength = Duration::randomRealtimeMilliseconds(vrng, 250, 2250);
             } else {
                 int randomVal = vrng->random(100);
                 if (randomVal < 25)
-                    player.expression = CHARACTER_EXPRESSION_BLINK;
+                    player.portrait = PORTRAIT_BLINK;
                 else if (randomVal < 31)
-                    player.expression = CHARACTER_EXPRESSION_WINK;
+                    player.portrait = PORTRAIT_WINK;
                 else if (randomVal < 37)
-                    player.expression = CHARACTER_EXPRESSION_MOUTH_OPEN_RANDOM;
+                    player.portrait = PORTRAIT_MOUTH_OPEN_RANDOM;
                 else if (randomVal < 43)
-                    player.expression = CHARACTER_EXPRESSION_PURSE_LIPS_RANDOM;
+                    player.portrait = PORTRAIT_PURSE_LIPS_RANDOM;
                 else if (randomVal < 46)
-                    player.expression = CHARACTER_EXPRESSION_LOOK_UP;
+                    player.portrait = PORTRAIT_LOOK_UP;
                 else if (randomVal < 52)
-                    player.expression = CHARACTER_EXPRESSION_LOOK_RIGHT;
+                    player.portrait = PORTRAIT_LOOK_RIGHT;
                 else if (randomVal < 58)
-                    player.expression = CHARACTER_EXPRESSION_LOOK_LEFT;
+                    player.portrait = PORTRAIT_LOOK_LEFT;
                 else if (randomVal < 64)
-                    player.expression = CHARACTER_EXPRESSION_LOOK_DOWN;
+                    player.portrait = PORTRAIT_LOOK_DOWN;
                 else if (randomVal < 70)
-                    player.expression = CHARACTER_EXPRESSION_54;
+                    player.portrait = PORTRAIT_54;
                 else if (randomVal < 76)
-                    player.expression = CHARACTER_EXPRESSION_55;
+                    player.portrait = PORTRAIT_55;
                 else if (randomVal < 82)
-                    player.expression = CHARACTER_EXPRESSION_56;
+                    player.portrait = PORTRAIT_56;
                 else if (randomVal < 88)
-                    player.expression = CHARACTER_EXPRESSION_57;
+                    player.portrait = PORTRAIT_57;
                 else if (randomVal < 94)
-                    player.expression = CHARACTER_EXPRESSION_PURSE_LIPS_1;
+                    player.portrait = PORTRAIT_PURSE_LIPS_1;
                 else
-                    player.expression = CHARACTER_EXPRESSION_PURSE_LIPS_2;
+                    player.portrait = PORTRAIT_PURSE_LIPS_2;
             }
 
-            // TODO(captainurist): We overwrite the random timing from the CHARACTER_EXPRESSION_NORMAL branch here.
+            // TODO(captainurist): We overwrite the random timing from the PORTRAIT_NORMAL branch here.
             //                     Doesn't seem intentional!
-            Duration timeLength = pPlayerFrameTable->GetDurationByExpression(player.expression);
+            Duration timeLength = pPortraitFrameTable->animationDuration(player.portrait);
             if (timeLength)
-                player.uExpressionTimeLength = timeLength;
-        } else if (player.expression != CHARACTER_EXPRESSION_DMGRECVD_MINOR &&
-                   player.expression != CHARACTER_EXPRESSION_DMGRECVD_MODERATE &&
-                   player.expression != CHARACTER_EXPRESSION_DMGRECVD_MAJOR ||
-                   player.uExpressionTimePassed >= player.uExpressionTimeLength) {
-            player.uExpressionTimeLength = 0_ticks;
-            player.uExpressionTimePassed = 0_ticks;
-            player.expression = expressionForCondition(condition);
+                player.portraitTimeLength = timeLength;
+        } else if (player.portrait != PORTRAIT_DMGRECVD_MINOR &&
+                   player.portrait != PORTRAIT_DMGRECVD_MODERATE &&
+                   player.portrait != PORTRAIT_DMGRECVD_MAJOR ||
+                   player.portraitTimePassed >= player.portraitTimeLength) {
+            player.portraitTimeLength = 0_ticks;
+            player.portraitTimePassed = 0_ticks;
+            player.portrait = portraitForCondition(condition);
         }
     }
 
@@ -840,7 +818,7 @@ void Party::restAndHeal() {
         if (pPlayer->classType == CLASS_LICH) {
             have_vessels_soul = false;
             for (unsigned i = 0; i < Character::INVENTORY_SLOT_COUNT; i++) {
-                if (pPlayer->pInventoryItemList[i].uItemID == ITEM_QUEST_LICH_JAR_FULL && pPlayer->pInventoryItemList[i].uHolderPlayer == pPlayerID)
+                if (pPlayer->pInventoryItemList[i].itemId == ITEM_QUEST_LICH_JAR_FULL && pPlayer->pInventoryItemList[i].lichJarCharacterIndex == pPlayerID)
                     have_vessels_soul = true;
             }
             if (!have_vessels_soul) {
@@ -952,25 +930,23 @@ int Party::GetPartyReputation() {
     return npcRep + ddm_dlv->reputation;
 }
 
+// TODO(pskelton): drop unsigned
 //----- (004269A2) --------------------------------------------------------
 void Party::GivePartyExp(unsigned int pEXPNum) {
-    signed int pActivePlayerCount;  // ecx@1
-    int pLearningPercent;           // eax@13
-    int playermodexp;
-
     if (pEXPNum > 0) {
-        pActivePlayerCount = 0;
+        // Count active characters
+        int pActivePlayerCount = 0;
         for (Character &player : this->pCharacters) {
             if (player.conditions.HasNone({CONDITION_UNCONSCIOUS, CONDITION_DEAD, CONDITION_PETRIFIED, CONDITION_ERADICATED})) {
                 pActivePlayerCount++;
             }
         }
+        // Split gained xp between active characters
         if (pActivePlayerCount) {
-            pEXPNum = pEXPNum / pActivePlayerCount;
+            int perCharXP = static_cast<int>(pEXPNum) / pActivePlayerCount;
             for (Character &player : this->pCharacters) {
                 if (player.conditions.HasNone({CONDITION_UNCONSCIOUS, CONDITION_DEAD, CONDITION_PETRIFIED, CONDITION_ERADICATED})) {
-                    pLearningPercent = player.getLearningPercent();
-                    playermodexp = pEXPNum + pEXPNum * pLearningPercent / 100;
+                    int playermodexp = perCharXP + perCharXP * player.getLearningPercent() / 100;
                     player.setXP(player.experience + playermodexp);
                 }
             }
@@ -985,7 +961,7 @@ void Party::partyFindsGold(int amount, GoldReceivePolicy policy) {
     std::string status;
     if (policy == GOLD_RECEIVE_NOSHARE_SILENT) {
     } else if (policy == GOLD_RECEIVE_NOSHARE_MSG) {
-        status = localization->FormatString(LSTR_FMT_YOU_FOUND_D_GOLD, amount);
+        status = localization->FormatString(LSTR_YOU_FOUND_LU_GOLD, amount);
     } else {
         FlatHirelings buf;
         buf.Prepare();
@@ -1010,9 +986,9 @@ void Party::partyFindsGold(int amount, GoldReceivePolicy policy) {
             if (hirelingSalaries < 1) {
                 hirelingSalaries = 1;
             }
-            status = localization->FormatString(LSTR_FMT_YOU_FOUND_D_GOLD_FOLLOWERS, goldToGain, hirelingSalaries);
+            status = localization->FormatString(LSTR_YOU_FOUND_LU_GOLD_FOLLOWERS_TAKE_LU, goldToGain, hirelingSalaries);
         } else {
-            status = localization->FormatString(LSTR_FMT_YOU_FOUND_D_GOLD, amount);
+            status = localization->FormatString(LSTR_YOU_FOUND_LU_GOLD, amount);
         }
     }
     AddGold(goldToGain - hirelingSalaries);
@@ -1022,12 +998,12 @@ void Party::partyFindsGold(int amount, GoldReceivePolicy policy) {
 }
 
 void Party::dropHeldItem() {
-    if (pPickedItem.uItemID == ITEM_NULL) {
+    if (pPickedItem.itemId == ITEM_NULL) {
         return;
     }
 
     SpriteObject sprite;
-    sprite.uType = pItemTable->pItems[pPickedItem.uItemID].uSpriteID;
+    sprite.uType = pItemTable->items[pPickedItem.itemId].spriteId;
     sprite.uObjectDescID = pObjectList->ObjectIDByItemID(sprite.uType);
     sprite.spell_caster_pid = Pid(OBJECT_Character, 0);
     sprite.vPosition = pos + Vec3f(0, 0, eyeLevel);
@@ -1047,7 +1023,7 @@ void Party::dropHeldItem() {
 
 void Party::placeHeldItemInInventoryOrDrop() {
     // no picked item
-    if (pPickedItem.uItemID == ITEM_NULL) {
+    if (pPickedItem.itemId == ITEM_NULL) {
         return;
     }
 
@@ -1058,18 +1034,18 @@ void Party::placeHeldItemInInventoryOrDrop() {
     }
 }
 
-bool Party::addItemToParty(ItemGen *pItem, bool isSilent) {
-    if (!pItemTable->pItems[pItem->uItemID].uItemID_Rep_St) {
+bool Party::addItemToParty(Item *pItem, bool isSilent) {
+    if (!pItemTable->items[pItem->itemId].identifyDifficulty) {
         pItem->SetIdentified();
     }
 
-    if (!pItemTable->pItems[pItem->uItemID].iconName.empty()) {
+    if (!pItemTable->items[pItem->itemId].iconName.empty()) {
         int playerId = hasActiveCharacter() ? (pParty->_activeCharacter - 1) : 0;
         for (int i = 0; i < pCharacters.size(); i++, playerId++) {
             if (playerId >= pCharacters.size()) {
                 playerId = 0;
             }
-            int itemIndex = pCharacters[playerId].AddItem(-1, pItem->uItemID);
+            int itemIndex = pCharacters[playerId].AddItem(-1, pItem->itemId);
             if (itemIndex) {
                 pCharacters[playerId].pInventoryItemList[itemIndex - 1] = *pItem;
                 pItem->Reset();

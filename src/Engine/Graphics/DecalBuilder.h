@@ -3,8 +3,8 @@
 #include <array>
 
 #include "Engine/Graphics/RenderEntities.h"
-#include "Engine/Tables/TileEnums.h"
 #include "Engine/Time/Duration.h"
+#include "Engine/Data/TileEnums.h"
 
 #include "Utility/Flags.h"
 
@@ -93,7 +93,7 @@ struct DecalBuilder {
      * 
      * Attemps to apply a certain bloodsplat onto the supplied terrain triangle.
      * 
-     * @param terrainFlags                  Terrain flags
+     * @param fading                        Whether blood splat should be fading.
      * @param terrnorm                      Normal vector of supplied triangle.
      * @param[out] tridotdist               Plane dot distance of supplied vertices.
      * @param triverts                      Vertices of terrain triangle to apply splat onto.
@@ -101,7 +101,7 @@ struct DecalBuilder {
      * 
      * @return                              True if bloodsplat_container->uNumBloodsplats > 0, false otherwise.
      */
-    bool ApplyBloodSplatToTerrain(TILE_DESC_FLAGS terrainFlags, Vec3f *terrnorm, float *tridotdist,
+    bool ApplyBloodSplatToTerrain(bool fading, const Vec3f &terrnorm, float *tridotdist,
                                   RenderVertexSoft *triverts, const int whichsplat);
     void DrawDecals(float z_bias);
     void DrawBloodsplats();

@@ -8,6 +8,7 @@
 #include "Arcomage/Arcomage.h"
 
 #include "Engine/Engine.h"
+#include "Engine/EngineFileSystem.h"
 #include "Engine/EngineGlobals.h"
 #include "Engine/Components/Control/EngineControlComponent.h"
 #include "Engine/Components/Control/EngineController.h"
@@ -28,13 +29,12 @@
 #include "Media/Audio/AudioPlayer.h"
 #include "Media/MediaPlayer.h"
 
-#include "Library/Image/PCX.h"
+#include "Library/Image/Png.h"
 #include "Library/Logger/Logger.h"
 #include "Library/Platform/Application/PlatformApplication.h"
 #include "Library/Platform/Interface/PlatformGamepad.h"
 
 #include "Utility/Streams/FileOutputStream.h"
-#include "Utility/DataPath.h"
 
 using Io::InputAction;
 
@@ -156,9 +156,9 @@ void GameWindowHandler::OnScreenshot() {
     if (render) {
         // TODO(pskelton): add "Screenshots" folder?
         engine->config->settings.ScreenshotNumber.increment();
-        std::string path = fmt::format("screenshot_{:05}.pcx", engine->config->settings.ScreenshotNumber.value());
+        std::string path = fmt::format("screenshot_{:05}.png", engine->config->settings.ScreenshotNumber.value());
 
-        FileOutputStream(makeDataPath(path)).write(pcx::encode(render->MakeFullScreenshot()).string_view());
+        ufs->write(path, png::encode(render->MakeFullScreenshot()));
     }
 }
 
@@ -207,7 +207,7 @@ void GameWindowHandler::OnMouseLeftClick(Pointi position) {
     } else {
         pMediaPlayer->StopMovie();
 
-        mouse->SetMouseClick(position.x, position.y);
+        mouse->setPosition(position);
 
         if (GetCurrentMenuID() == MENU_CREATEPARTY) {
             UI_OnKeyDown(PlatformKey::KEY_SELECT);
@@ -228,13 +228,13 @@ void GameWindowHandler::OnMouseRightClick(Pointi position) {
     } else {
         pMediaPlayer->StopMovie();
 
-        mouse->SetMouseClick(position.x, position.y);
+        mouse->setPosition(position);
 
         if (engine) {
             engine->PickMouse(pCamera3D->GetMouseInfoDepth(), position.x, position.y, &vis_allsprites_filter, &vis_door_filter);
         }
 
-        UI_OnMouseRightClick(position.x, position.y);
+        UI_OnMouseRightClick(position);
     }
 }
 
@@ -277,7 +277,7 @@ void GameWindowHandler::OnMouseMove(Pointi position, bool left_button, bool righ
         ArcomageGame::OnMouseClick(1, right_button);
     } else {
         if (mouse) {
-            mouse->SetMouseClick(position.x, position.y);
+            mouse->setPosition(position);
         }
     }
 }
@@ -304,6 +304,10 @@ void GameWindowHandler::OnKey(PlatformKey key) {
         return;
     } else if (keyboardActionMapping->IsKeyMatchAction(InputAction::CycleFilter, key)) {
         OnCycleFilter();
+        return;
+    } else if (keyboardActionMapping->IsKeyMatchAction(InputAction::ToggleMouseLook, key)) {
+        if (current_screen_type == SCREEN_GAME)
+            mouse->ToggleMouseLook();
         return;
     }
 
@@ -390,7 +394,7 @@ void GameWindowHandler::OnActivated() {
         }
 
         pAudioPlayer->resumeSounds();
-        if (!bGameoverLoop && !pMovie_Track) {  // continue an audio track
+        if (!GameOverNoSound && !pMovie_Track) {  // continue an audio track
             pAudioPlayer->MusicResume();
         }
     }
@@ -641,25 +645,4 @@ bool GameWindowHandler::gamepadAxisEvent(const PlatformGamepadAxisEvent *event) 
     }
 
     return false;
-}
-
-bool GameWindowHandler::event(const PlatformEvent *event) {
-    if (PlatformEventFilter::event(event))
-        return true;
-
-    for (auto &fsmEventHandler : _fsmEventHandlers)
-        if (fsmEventHandler->event(event))
-            return true;
-
-    return false;
-}
-
-void GameWindowHandler::addFsmEventHandler(FsmEventHandler *fsmEventHandler) {
-    assert(std::ranges::find(_fsmEventHandlers, fsmEventHandler) == _fsmEventHandlers.end());
-    _fsmEventHandlers.push_back(fsmEventHandler);
-}
-
-void GameWindowHandler::removeFsmEventHandler(FsmEventHandler *fsmEventHandler) {
-    assert(std::ranges::find(_fsmEventHandlers, fsmEventHandler) != _fsmEventHandlers.end());
-    std::erase(_fsmEventHandlers, fsmEventHandler);
 }

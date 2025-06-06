@@ -7,7 +7,7 @@ set(ENGINE_OBJECTS_SOURCES
         Decoration.cpp
         DecorationList.cpp
         ItemEnumFunctions.cpp
-        Items.cpp
+        Item.cpp
         MonsterEnumFunctions.cpp
         Monsters.cpp
         NPC.cpp
@@ -19,6 +19,7 @@ set(ENGINE_OBJECTS_SOURCES
 set(ENGINE_OBJECTS_HEADERS
         Actor.h
         ActorEnums.h
+        ActorEnumFunctions.h
         Chest.h
         ChestEnums.h
         CombinedSkillValue.h
@@ -28,7 +29,7 @@ set(ENGINE_OBJECTS_HEADERS
         ItemEnchantment.h
         ItemEnums.h
         ItemEnumFunctions.h
-        Items.h
+        Item.h
         Monsters.h
         MonsterEnums.h
         MonsterEnumFunctions.h
@@ -41,7 +42,9 @@ set(ENGINE_OBJECTS_HEADERS
         CharacterEnumFunctions.h
         SpriteObject.h
         SpriteEnums.h
-        SpriteEnumFunctions.h)
+        SpriteEnumFunctions.h
+        TalkAnimation.h
+        TalkAnimation.cpp)
 
 add_library(engine_objects STATIC ${ENGINE_OBJECTS_SOURCES} ${ENGINE_OBJECTS_HEADERS})
 target_check_style(engine_objects)

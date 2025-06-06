@@ -21,9 +21,9 @@
 #include "Engine/Objects/Chest.h"
 #include "Engine/Party.h"
 #include "Engine/SaveLoad.h"
-#include "Engine/Tables/IconFrameTable.h"
-#include "Engine/Tables/CharacterFrameTable.h"
-#include "Engine/Tables/TileTable.h"
+#include "Engine/Data/IconFrameData.h"
+#include "Engine/Data/PortraitFrameData.h"
+#include "Engine/Data/TileData.h"
 #include "Engine/Time/Time.h"
 
 #include "Media/Audio/SoundInfo.h"
@@ -289,7 +289,7 @@ void reconstruct(const BLVFace_MM7 &src, BLVFace *dst) {
     dst->uNumVertices = src.numVertices;
 }
 
-void reconstruct(const TileDesc_MM7 &src, TileDesc *dst) {
+void reconstruct(const TileData_MM7 &src, TileData *dst) {
     reconstruct(src.tileName, &dst->name);
     dst->name = ascii::toLower(dst->name);
 
@@ -297,9 +297,9 @@ void reconstruct(const TileDesc_MM7 &src, TileDesc *dst) {
         dst->name.insert(0, "h"); // mm7 uses hd water tiles with legacy names
 
     dst->uTileID = src.tileId;
-    dst->tileset = static_cast<Tileset>(src.tileSet);
-    dst->uSection = static_cast<TILE_SECT>(src.section);
-    dst->uAttributes = static_cast<TILE_DESC_FLAGS>(src.attributes);
+    dst->tileset = static_cast<Tileset>(src.tileset);
+    dst->uSection = static_cast<TileVariant>(src.section);
+    dst->uAttributes = static_cast<TileFlags>(src.attributes);
 }
 
 void reconstruct(const TextureFrame_MM7 &src, TextureFrame *dst) {
@@ -308,10 +308,17 @@ void reconstruct(const TextureFrame_MM7 &src, TextureFrame *dst) {
 
     dst->animationDuration = Duration::fromTicks(src.animLength * 8);
     dst->frameDuration = Duration::fromTicks(src.animTime * 8);
-    dst->flags = static_cast<TextureFrameFlags>(src.flags);
+
+    // MM7 uses different enum values for texture frames and portrait frames. We have unified them, so need to properly
+    // convert the values here.
+    dst->flags = 0;
+    if (src.flags & 1)
+        dst->flags |= FRAME_HAS_MORE;
+    if (src.flags & 2)
+        dst->flags |= FRAME_FIRST;
 }
 
-void snapshot(const RawTimer &src, Timer_MM7 *dst) {
+void snapshot(const Timer &src, Timer_MM7 *dst) {
     memzero(dst);
 
     dst->ready = true;
@@ -325,7 +332,7 @@ void snapshot(const RawTimer &src, Timer_MM7 *dst) {
     dst->totalGameTimeElapsed = src._time.ticks();
 }
 
-void reconstruct(const Timer_MM7 &src, RawTimer *dst) {
+void reconstruct(const Timer_MM7 &src, Timer *dst) {
     dst->_paused = src.paused;
     dst->_turnBased = src.turnBased;
     dst->_lastFrameTime = Duration::fromTicks(src.lastFrameTime);
@@ -436,59 +443,59 @@ void reconstruct(const SpellBuff_MM7 &src, SpellBuff *dst) {
     dst->isGMBuff = src.flags;
 }
 
-void snapshot(const ItemGen &src, ItemGen_MM7 *dst) {
+void snapshot(const Item &src, Item_MM7 *dst) {
     memzero(dst);
 
-    dst->itemID = std::to_underlying(src.uItemID);
-    if (isPotion(src.uItemID)) {
-        dst->attributeEnchantmentOrPotionPower = src.potionPower;
-    } else if (src.attributeEnchantment) {
-        dst->attributeEnchantmentOrPotionPower = std::to_underlying(*src.attributeEnchantment) + 1;
+    dst->itemId = std::to_underlying(src.itemId);
+    if (isPotion(src.itemId)) {
+        dst->standardEnchantmentOrPotionPower = src.potionPower;
+    } else if (src.standardEnchantment) {
+        dst->standardEnchantmentOrPotionPower = std::to_underlying(*src.standardEnchantment) + 1;
     } else {
-        dst->attributeEnchantmentOrPotionPower = 0;
+        dst->standardEnchantmentOrPotionPower = 0;
     }
-    dst->enchantmentStrength = src.m_enchantmentStrength;
-    if (isGold(src.uItemID)) {
+    dst->standardEnchantmentStrength = src.standardEnchantmentStrength;
+    if (isGold(src.itemId)) {
         dst->specialEnchantmentOrGoldAmount = src.goldAmount;
     } else {
-        dst->specialEnchantmentOrGoldAmount = std::to_underlying(src.special_enchantment);
+        dst->specialEnchantmentOrGoldAmount = std::to_underlying(src.specialEnchantment);
     }
-    dst->numCharges = src.uNumCharges;
-    dst->attributes = std::to_underlying(src.uAttributes);
-    dst->bodyAnchor = std::to_underlying(src.uBodyAnchor);
-    dst->maxCharges = src.uMaxCharges;
-    dst->holderPlayer = src.uHolderPlayer + 1;
+    dst->numCharges = src.numCharges;
+    dst->flags = std::to_underlying(src.flags);
+    dst->equippedSlot = std::to_underlying(src.equippedSlot);
+    dst->maxCharges = src.maxCharges;
+    dst->lichJarCharacterIndex = src.lichJarCharacterIndex + 1;
     dst->placedInChest = src.placedInChest;
-    snapshot(src.uExpireTime, &dst->expireTime);
+    snapshot(src.enchantmentExpirationTime, &dst->enchantmentExpirationTime);
 }
 
-void reconstruct(const ItemGen_MM7 &src, ItemGen *dst) {
-    dst->uItemID = static_cast<ItemId>(src.itemID);
-    if (isPotion(dst->uItemID)) {
-        dst->potionPower = src.attributeEnchantmentOrPotionPower;
-        dst->attributeEnchantment = {};
-    } else if (src.attributeEnchantmentOrPotionPower) {
+void reconstruct(const Item_MM7 &src, Item *dst) {
+    dst->itemId = static_cast<ItemId>(src.itemId);
+    if (isPotion(dst->itemId)) {
+        dst->potionPower = src.standardEnchantmentOrPotionPower;
+        dst->standardEnchantment = {};
+    } else if (src.standardEnchantmentOrPotionPower) {
         dst->potionPower = 0;
-        dst->attributeEnchantment = static_cast<CharacterAttributeType>(src.attributeEnchantmentOrPotionPower - 1);
+        dst->standardEnchantment = static_cast<CharacterAttribute>(src.standardEnchantmentOrPotionPower - 1);
     } else {
         dst->potionPower = 0;
-        dst->attributeEnchantment = {};
+        dst->standardEnchantment = {};
     }
-    dst->m_enchantmentStrength = src.enchantmentStrength;
-    if (isGold(dst->uItemID)) {
+    dst->standardEnchantmentStrength = src.standardEnchantmentStrength;
+    if (isGold(dst->itemId)) {
         dst->goldAmount = src.specialEnchantmentOrGoldAmount;
-        dst->special_enchantment = ITEM_ENCHANTMENT_NULL;
+        dst->specialEnchantment = ITEM_ENCHANTMENT_NULL;
     } else {
         dst->goldAmount = 0;
-        dst->special_enchantment = static_cast<ItemEnchantment>(src.specialEnchantmentOrGoldAmount);
+        dst->specialEnchantment = static_cast<ItemEnchantment>(src.specialEnchantmentOrGoldAmount);
     }
-    dst->uNumCharges = src.numCharges;
-    dst->uAttributes = ItemFlags(src.attributes);
-    dst->uBodyAnchor = static_cast<ItemSlot>(src.bodyAnchor);
-    dst->uMaxCharges = src.maxCharges;
-    dst->uHolderPlayer = src.holderPlayer - 1;
+    dst->numCharges = src.numCharges;
+    dst->flags = ItemFlags(src.flags);
+    dst->equippedSlot = static_cast<ItemSlot>(src.equippedSlot);
+    dst->maxCharges = src.maxCharges;
+    dst->lichJarCharacterIndex = src.lichJarCharacterIndex - 1;
     dst->placedInChest = src.placedInChest;
-    reconstruct(src.expireTime, &dst->uExpireTime);
+    reconstruct(src.enchantmentExpirationTime, &dst->enchantmentExpirationTime);
 }
 
 void snapshot(const Party &src, Party_MM7 *dst) {
@@ -747,17 +754,17 @@ void reconstruct(const Party_MM7 &src, Party *dst) {
     dst->uFine = src.fine;
 }
 
-void snapshot(const RawCharacterConditions &src, CharacterConditions_MM7 *dst) {
+void snapshot(const CharacterConditions &src, CharacterConditions_MM7 *dst) {
     memzero(dst);
 
     snapshot(src._times, &dst->times);
 }
 
-void reconstruct(const CharacterConditions_MM7 &src, RawCharacterConditions *dst) {
+void reconstruct(const CharacterConditions_MM7 &src, CharacterConditions *dst) {
     reconstruct(src.times, &dst->_times);
 }
 
-void snapshot(const Character &src, Player_MM7 *dst) {
+void snapshot(const Character &src, Character_MM7 *dst) {
     memzero(dst);
 
     snapshot(src.conditions, &dst->conditions);
@@ -769,20 +776,20 @@ void snapshot(const Character &src, Player_MM7 *dst) {
     dst->sex = std::to_underlying(src.uSex);
     dst->classType = std::to_underlying(src.classType);
     dst->currentFace = src.uCurrentFace;
-    dst->might = src._stats[CHARACTER_ATTRIBUTE_MIGHT];
-    dst->mightBonus = src._statBonuses[CHARACTER_ATTRIBUTE_MIGHT];
-    dst->intelligence = src._stats[CHARACTER_ATTRIBUTE_INTELLIGENCE];
-    dst->intelligenceBonus = src._statBonuses[CHARACTER_ATTRIBUTE_INTELLIGENCE];
-    dst->personality = src._stats[CHARACTER_ATTRIBUTE_PERSONALITY];
-    dst->personalityBonus = src._statBonuses[CHARACTER_ATTRIBUTE_PERSONALITY];
-    dst->endurance = src._stats[CHARACTER_ATTRIBUTE_ENDURANCE];
-    dst->enduranceBonus = src._statBonuses[CHARACTER_ATTRIBUTE_ENDURANCE];
-    dst->speed = src._stats[CHARACTER_ATTRIBUTE_SPEED];
-    dst->speedBonus = src._statBonuses[CHARACTER_ATTRIBUTE_SPEED];
-    dst->accuracy = src._stats[CHARACTER_ATTRIBUTE_ACCURACY];
-    dst->accuracyBonus = src._statBonuses[CHARACTER_ATTRIBUTE_ACCURACY];
-    dst->luck = src._stats[CHARACTER_ATTRIBUTE_LUCK];
-    dst->luckBonus = src._statBonuses[CHARACTER_ATTRIBUTE_LUCK];
+    dst->might = src._stats[ATTRIBUTE_MIGHT];
+    dst->mightBonus = src._statBonuses[ATTRIBUTE_MIGHT];
+    dst->intelligence = src._stats[ATTRIBUTE_INTELLIGENCE];
+    dst->intelligenceBonus = src._statBonuses[ATTRIBUTE_INTELLIGENCE];
+    dst->personality = src._stats[ATTRIBUTE_PERSONALITY];
+    dst->personalityBonus = src._statBonuses[ATTRIBUTE_PERSONALITY];
+    dst->endurance = src._stats[ATTRIBUTE_ENDURANCE];
+    dst->enduranceBonus = src._statBonuses[ATTRIBUTE_ENDURANCE];
+    dst->speed = src._stats[ATTRIBUTE_SPEED];
+    dst->speedBonus = src._statBonuses[ATTRIBUTE_SPEED];
+    dst->accuracy = src._stats[ATTRIBUTE_ACCURACY];
+    dst->accuracyBonus = src._statBonuses[ATTRIBUTE_ACCURACY];
+    dst->luck = src._stats[ATTRIBUTE_LUCK];
+    dst->luckBonus = src._statBonuses[ATTRIBUTE_LUCK];
     dst->acModifier = src.sACModifier;
     dst->level = src.uLevel;
     dst->levelModifier = src.sLevelModifier;
@@ -792,13 +799,13 @@ void snapshot(const Character &src, Player_MM7 *dst) {
     snapshot(src._achievedAwardsBits, &dst->achievedAwardsBits, tags::reverseBits);
     snapshot(src.bHaveSpell, &dst->haveSpell);
 
-    dst->pureLuckUsed = src._pureStatPotionUsed[CHARACTER_ATTRIBUTE_LUCK];
-    dst->pureSpeedUsed = src._pureStatPotionUsed[CHARACTER_ATTRIBUTE_SPEED];
-    dst->pureIntellectUsed = src._pureStatPotionUsed[CHARACTER_ATTRIBUTE_INTELLIGENCE];
-    dst->pureEnduranceUsed = src._pureStatPotionUsed[CHARACTER_ATTRIBUTE_ENDURANCE];
-    dst->purePersonalityUsed = src._pureStatPotionUsed[CHARACTER_ATTRIBUTE_PERSONALITY];
-    dst->pureAccuracyUsed = src._pureStatPotionUsed[CHARACTER_ATTRIBUTE_ACCURACY];
-    dst->pureMightUsed = src._pureStatPotionUsed[CHARACTER_ATTRIBUTE_MIGHT];
+    dst->pureLuckUsed = src._pureStatPotionUsed[ATTRIBUTE_LUCK];
+    dst->pureSpeedUsed = src._pureStatPotionUsed[ATTRIBUTE_SPEED];
+    dst->pureIntellectUsed = src._pureStatPotionUsed[ATTRIBUTE_INTELLIGENCE];
+    dst->pureEnduranceUsed = src._pureStatPotionUsed[ATTRIBUTE_ENDURANCE];
+    dst->purePersonalityUsed = src._pureStatPotionUsed[ATTRIBUTE_PERSONALITY];
+    dst->pureAccuracyUsed = src._pureStatPotionUsed[ATTRIBUTE_ACCURACY];
+    dst->pureMightUsed = src._pureStatPotionUsed[ATTRIBUTE_MIGHT];
 
     snapshot(src.pInventoryItemList, &dst->inventoryItems);
     snapshot(src.pInventoryMatrix, &dst->inventoryMatrix);
@@ -852,24 +859,24 @@ void snapshot(const Character &src, Player_MM7 *dst) {
     dst->healthRelated = src._health_related;
     dst->fullManaBonus = src.uFullManaBonus;
     dst->manaRelated = src._mana_related;
-    dst->expression = std::to_underlying(src.expression);
-    dst->expressionTimePassed = src.uExpressionTimePassed.ticks();
-    dst->expressionTimeLength = src.uExpressionTimeLength.ticks();
-    dst->field_1AA2 = src.uExpressionImageIndex;
-    dst->_expression21_animtime = src._expression21_animtime.ticks();
-    dst->_expression21_frameset = src._expression21_frameset;
+    dst->portrait = std::to_underlying(src.portrait);
+    dst->portraitTimePassed = src.portraitTimePassed.ticks();
+    dst->portraitTimeLength = src.portraitTimeLength.ticks();
+    dst->portraitImageIndex = src.portraitImageIndex;
+    dst->talkAnimTime = 0;
+    dst->talkFrameSet = 0;
 
     for (unsigned int i = 0; i < 5; ++i) {
-        if (i >= src.vBeacons.size()) {
+        if (!src.vBeacons[i]) {
             continue;
         }
-        snapshot(src.vBeacons[i].uBeaconTime, &dst->installedBeacons[i].beaconTime);
-        dst->installedBeacons[i].partyPosX = src.vBeacons[i]._partyPos.x;
-        dst->installedBeacons[i].partyPosY = src.vBeacons[i]._partyPos.y;
-        dst->installedBeacons[i].partyPosZ = src.vBeacons[i]._partyPos.z;
-        dst->installedBeacons[i].partyViewYaw = src.vBeacons[i]._partyViewYaw;
-        dst->installedBeacons[i].partyViewPitch = src.vBeacons[i]._partyViewPitch;
-        dst->installedBeacons[i].mapIndexInGamesLod = valueOr(gamesLodIndexByMapId, src.vBeacons[i].mapId, -1);
+        snapshot(src.vBeacons[i]->uBeaconTime, &dst->installedBeacons[i].beaconTime);
+        dst->installedBeacons[i].partyPosX = src.vBeacons[i]->_partyPos.x;
+        dst->installedBeacons[i].partyPosY = src.vBeacons[i]->_partyPos.y;
+        dst->installedBeacons[i].partyPosZ = src.vBeacons[i]->_partyPos.z;
+        dst->installedBeacons[i].partyViewYaw = src.vBeacons[i]->_partyViewYaw;
+        dst->installedBeacons[i].partyViewPitch = src.vBeacons[i]->_partyViewPitch;
+        dst->installedBeacons[i].mapIndexInGamesLod = valueOr(gamesLodIndexByMapId, src.vBeacons[i]->mapId, -1);
     }
 
     dst->numDivineInterventionCasts = src.uNumDivineInterventionCastsThisDay;
@@ -877,7 +884,7 @@ void snapshot(const Character &src, Player_MM7 *dst) {
     dst->numFireSpikeCasts = src.uNumFireSpikeCasts;
 }
 
-void reconstruct(const Player_MM7 &src, Character *dst) {
+void reconstruct(const Character_MM7 &src, Character *dst) {
     dst->Zero();
     reconstruct(src.conditions, &dst->conditions);
 
@@ -1010,20 +1017,20 @@ void reconstruct(const Player_MM7 &src, Character *dst) {
     }
 
     dst->uCurrentFace = src.currentFace;
-    dst->_stats[CHARACTER_ATTRIBUTE_MIGHT] = src.might;
-    dst->_statBonuses[CHARACTER_ATTRIBUTE_MIGHT] = src.mightBonus;
-    dst->_stats[CHARACTER_ATTRIBUTE_INTELLIGENCE] = src.intelligence;
-    dst->_statBonuses[CHARACTER_ATTRIBUTE_INTELLIGENCE] = src.intelligenceBonus;
-    dst->_stats[CHARACTER_ATTRIBUTE_PERSONALITY] = src.personality;
-    dst->_statBonuses[CHARACTER_ATTRIBUTE_PERSONALITY] = src.personalityBonus;
-    dst->_stats[CHARACTER_ATTRIBUTE_ENDURANCE] = src.endurance;
-    dst->_statBonuses[CHARACTER_ATTRIBUTE_ENDURANCE] = src.enduranceBonus;
-    dst->_stats[CHARACTER_ATTRIBUTE_SPEED] = src.speed;
-    dst->_statBonuses[CHARACTER_ATTRIBUTE_SPEED] = src.speedBonus;
-    dst->_stats[CHARACTER_ATTRIBUTE_ACCURACY] = src.accuracy;
-    dst->_statBonuses[CHARACTER_ATTRIBUTE_ACCURACY] = src.accuracyBonus;
-    dst->_stats[CHARACTER_ATTRIBUTE_LUCK] = src.luck;
-    dst->_statBonuses[CHARACTER_ATTRIBUTE_LUCK] = src.luckBonus;
+    dst->_stats[ATTRIBUTE_MIGHT] = src.might;
+    dst->_statBonuses[ATTRIBUTE_MIGHT] = src.mightBonus;
+    dst->_stats[ATTRIBUTE_INTELLIGENCE] = src.intelligence;
+    dst->_statBonuses[ATTRIBUTE_INTELLIGENCE] = src.intelligenceBonus;
+    dst->_stats[ATTRIBUTE_PERSONALITY] = src.personality;
+    dst->_statBonuses[ATTRIBUTE_PERSONALITY] = src.personalityBonus;
+    dst->_stats[ATTRIBUTE_ENDURANCE] = src.endurance;
+    dst->_statBonuses[ATTRIBUTE_ENDURANCE] = src.enduranceBonus;
+    dst->_stats[ATTRIBUTE_SPEED] = src.speed;
+    dst->_statBonuses[ATTRIBUTE_SPEED] = src.speedBonus;
+    dst->_stats[ATTRIBUTE_ACCURACY] = src.accuracy;
+    dst->_statBonuses[ATTRIBUTE_ACCURACY] = src.accuracyBonus;
+    dst->_stats[ATTRIBUTE_LUCK] = src.luck;
+    dst->_statBonuses[ATTRIBUTE_LUCK] = src.luckBonus;
     dst->sACModifier = src.acModifier;
     dst->uLevel = src.level;
     dst->sLevelModifier = src.levelModifier;
@@ -1033,13 +1040,13 @@ void reconstruct(const Player_MM7 &src, Character *dst) {
     reconstruct(src.achievedAwardsBits, &dst->_achievedAwardsBits, tags::reverseBits);
     reconstruct(src.haveSpell, &dst->bHaveSpell);
 
-    dst->_pureStatPotionUsed[CHARACTER_ATTRIBUTE_LUCK] = src.pureLuckUsed;
-    dst->_pureStatPotionUsed[CHARACTER_ATTRIBUTE_SPEED] = src.pureSpeedUsed;
-    dst->_pureStatPotionUsed[CHARACTER_ATTRIBUTE_INTELLIGENCE] = src.pureIntellectUsed;
-    dst->_pureStatPotionUsed[CHARACTER_ATTRIBUTE_ENDURANCE] = src.pureEnduranceUsed;
-    dst->_pureStatPotionUsed[CHARACTER_ATTRIBUTE_PERSONALITY] = src.purePersonalityUsed;
-    dst->_pureStatPotionUsed[CHARACTER_ATTRIBUTE_ACCURACY] = src.pureAccuracyUsed;
-    dst->_pureStatPotionUsed[CHARACTER_ATTRIBUTE_MIGHT] = src.pureMightUsed;
+    dst->_pureStatPotionUsed[ATTRIBUTE_LUCK] = src.pureLuckUsed;
+    dst->_pureStatPotionUsed[ATTRIBUTE_SPEED] = src.pureSpeedUsed;
+    dst->_pureStatPotionUsed[ATTRIBUTE_INTELLIGENCE] = src.pureIntellectUsed;
+    dst->_pureStatPotionUsed[ATTRIBUTE_ENDURANCE] = src.pureEnduranceUsed;
+    dst->_pureStatPotionUsed[ATTRIBUTE_PERSONALITY] = src.purePersonalityUsed;
+    dst->_pureStatPotionUsed[ATTRIBUTE_ACCURACY] = src.pureAccuracyUsed;
+    dst->_pureStatPotionUsed[ATTRIBUTE_MIGHT] = src.pureMightUsed;
 
     reconstruct(src.inventoryItems, &dst->pInventoryItemList);
     reconstruct(src.inventoryMatrix, &dst->pInventoryMatrix);
@@ -1093,16 +1100,17 @@ void reconstruct(const Player_MM7 &src, Character *dst) {
     dst->_health_related = src.healthRelated;
     dst->uFullManaBonus = src.fullManaBonus;
     dst->_mana_related = src.manaRelated;
-    dst->expression = static_cast<CharacterExpressionID>(src.expression);
-    dst->uExpressionTimePassed = Duration::fromTicks(src.expressionTimePassed);
-    dst->uExpressionTimeLength = Duration::fromTicks(src.expressionTimeLength);
-    dst->uExpressionImageIndex = src.field_1AA2;
-    dst->_expression21_animtime = Duration::fromTicks(src._expression21_animtime);
-    dst->_expression21_frameset = src._expression21_frameset;
+    dst->portrait = static_cast<CharacterPortrait>(src.portrait);
+    dst->portraitTimePassed = Duration::fromTicks(src.portraitTimePassed);
+    dst->portraitTimeLength = Duration::fromTicks(src.portraitTimeLength);
+    dst->portraitImageIndex = src.portraitImageIndex;
+    dst->talkAnimation = TalkAnimation();
 
-    for (int z = 0; z < dst->vBeacons.size(); z++)
-        dst->vBeacons[z].image->Release();
-    dst->vBeacons.clear();
+    for (int z = 0; z < 5; z++) {
+        if (dst->vBeacons[z])
+            dst->vBeacons[z]->image->Release();
+        dst->vBeacons[z].reset();
+    }
 
     for (unsigned int i = 0; i < 5; ++i) {
         if (src.installedBeacons[i].beaconTime != 0) {
@@ -1114,7 +1122,7 @@ void reconstruct(const Player_MM7 &src, Character *dst) {
             beacon._partyViewYaw = src.installedBeacons[i].partyViewYaw;
             beacon._partyViewPitch = src.installedBeacons[i].partyViewPitch;
             beacon.mapId = valueOr(mapIdByGamesLodIndex, src.installedBeacons[i].mapIndexInGamesLod, MAP_INVALID);
-            dst->vBeacons.push_back(beacon);
+            dst->vBeacons[i] = beacon;
         }
     }
 
@@ -1123,45 +1131,22 @@ void reconstruct(const Player_MM7 &src, Character *dst) {
     dst->uNumFireSpikeCasts = src.numFireSpikeCasts;
 }
 
-void snapshot(const Icon &src, IconFrame_MM7 *dst) {
+void snapshot(const IconFrameData &src, IconFrameData_MM7 *dst) {
     memzero(dst);
 
-    snapshot(src.GetAnimationName(), &dst->animationName);
-    dst->animLength = src.GetAnimLength().ticks() / 8;
-
-    snapshot(src.pTextureName, &dst->textureName);
-    dst->animTime = src.GetAnimTime().ticks() / 8;
-    dst->flags = src.uFlags;
+    snapshot(src.animationName, &dst->animationName);
+    dst->animationLength = src.animationLength.ticks() / 8;
+    snapshot(src.textureName, &dst->textureName);
+    dst->frameLength = src.frameLength.ticks() / 8;
+    dst->flags = std::to_underlying(src.flags);
 }
 
-void reconstruct(const IconFrame_MM7 &src, Icon *dst) {
-    std::string name;
-    reconstruct(src.animationName, &name);
-    dst->SetAnimationName(name);
-    dst->SetAnimLength(Duration::fromTicks(8 * src.animLength));
-
-    reconstruct(src.textureName, &dst->pTextureName);
-    dst->SetAnimTime(Duration::fromTicks(8 * src.animTime));
-    dst->uFlags = src.flags;
-}
-
-void snapshot(const UIAnimation &src, UIAnimation_MM7 *dst) {
-    memzero(dst);
-
-    /* 000 */ dst->iconId = src.icon->id;
-    /* 004 */ dst->animTime = src.uAnimTime;
-    /* 006 */ dst->animLength = src.uAnimLength.ticks();
-    /* 008 */ dst->x = src.x;
-    /* 00A */ dst->y = src.y;
-}
-
-void reconstruct(const UIAnimation_MM7 &src, UIAnimation *dst) {
-    dst->icon = pIconsFrameTable->GetIcon(src.iconId);
-    ///* 000 */ anim->uIconID = src.uIconID;
-    /* 004 */ dst->uAnimTime = src.animTime;
-    /* 006 */ dst->uAnimLength = Duration::fromTicks(src.animLength);
-    /* 008 */ dst->x = src.x;
-    /* 00A */ dst->y = src.y;
+void reconstruct(const IconFrameData_MM7 &src, IconFrameData *dst) {
+    reconstruct(src.animationName, &dst->animationName);
+    dst->animationLength = Duration::fromTicks(8 * src.animationLength);
+    reconstruct(src.textureName, &dst->textureName);
+    dst->frameLength = Duration::fromTicks(8 * src.frameLength);
+    dst->flags = static_cast<FrameFlags>(src.flags);
 }
 
 void reconstruct(const MonsterDesc_MM6 &src, MonsterDesc *dst) {
@@ -1420,8 +1405,8 @@ void snapshot(const BLVDoor &src, BLVDoor_MM7 *dst) {
     dst->uTimeSinceTriggered = src.uTimeSinceTriggered.ticks();
     dst->vDirection = src.vDirection.toFixpoint();
     dst->uMoveLength = src.uMoveLength;
-    dst->uCloseSpeed = src.uCloseSpeed;
     dst->uOpenSpeed = src.uOpenSpeed;
+    dst->uCloseSpeed = src.uCloseSpeed;
     dst->uNumVertices = src.uNumVertices;
     dst->uNumFaces = src.uNumFaces;
     dst->uNumSectors = src.uNumSectors;
@@ -1435,8 +1420,8 @@ void reconstruct(const BLVDoor_MM7 &src, BLVDoor *dst) {
     dst->uTimeSinceTriggered = Duration::fromTicks(src.uTimeSinceTriggered);
     dst->vDirection = src.vDirection.toFloatFromFixpoint();
     dst->uMoveLength = src.uMoveLength;
-    dst->uCloseSpeed = src.uCloseSpeed;
     dst->uOpenSpeed = src.uOpenSpeed;
+    dst->uCloseSpeed = src.uCloseSpeed;
     dst->uNumVertices = src.uNumVertices;
     dst->uNumFaces = src.uNumFaces;
     dst->uNumSectors = src.uNumSectors;
@@ -1603,13 +1588,6 @@ void reconstruct(const SpriteObject_MM7 &src, SpriteObject *dst) {
     dst->initialPosition = src.initialPosition.toFloat();
 }
 
-void reconstruct(const ChestDesc_MM7 &src, ChestDesc *dst) {
-    reconstruct(src.pName, &dst->sName);
-    dst->uWidth = src.uWidth;
-    dst->uHeight = src.uHeight;
-    dst->uTextureID = src.uTextureID;
-}
-
 void reconstruct(const DecorationDesc_MM6 &src, DecorationDesc *dst) {
     reconstruct(src.name, &dst->name);
     reconstruct(src.type, &dst->type);
@@ -1639,27 +1617,27 @@ void reconstruct(const DecorationDesc_MM7 &src, DecorationDesc *dst) {
 void snapshot(const Chest &src, Chest_MM7 *dst) {
     memzero(dst);
 
-    dst->uChestBitmapID = src.uChestBitmapID;
-    dst->uFlags = std::to_underlying(src.uFlags);
-    snapshot(src.igChestItems, &dst->igChestItems);
-    snapshot(src.pInventoryIndices, &dst->pInventoryIndices);
+    dst->chestTypeId = src.chestTypeId;
+    dst->flags = std::to_underlying(src.flags);
+    snapshot(src.items, &dst->items);
+    snapshot(src.inventoryMatrix, &dst->inventoryMatrix);
 }
 
 void reconstruct(const Chest_MM7 &src, Chest *dst) {
-    dst->uChestBitmapID = src.uChestBitmapID;
-    dst->uFlags = ChestFlags(src.uFlags);
-    reconstruct(src.igChestItems, &dst->igChestItems);
-    reconstruct(src.pInventoryIndices, &dst->pInventoryIndices);
+    dst->chestTypeId = src.chestTypeId;
+    dst->flags = ChestFlags(src.flags);
+    reconstruct(src.items, &dst->items);
+    reconstruct(src.inventoryMatrix, &dst->inventoryMatrix);
 
     // fix placedInChest field for old saves
-    int chestArea = dst->pInventoryIndices.size();
+    int chestArea = dst->inventoryMatrix.size();
     for (int item = 0; item < chestArea; item++) {
-        if (dst->igChestItems[item].uItemID == ITEM_NULL) {
+        if (dst->items[item].itemId == ITEM_NULL) {
             continue;
         }
         for (int position = 0; position < chestArea; position++) {
-            if (dst->pInventoryIndices[position] == item + 1) {
-                dst->igChestItems[item].placedInChest = true;
+            if (dst->inventoryMatrix[position] == item + 1) {
+                dst->items[item].placedInChest = true;
                 break;
             }
         }
@@ -1684,12 +1662,12 @@ void reconstruct(const OverlayDesc_MM7 &src, OverlayDesc *dst) {
     dst->spriteFramesetGroup = src.spriteFramesetGroup;
 }
 
-void reconstruct(const PlayerFrame_MM7 &src, PlayerFrame *dst) {
-    dst->expression = static_cast<CharacterExpressionID>(src.expression);
-    dst->uTextureID = src.uTextureID;
-    dst->uAnimTime = Duration::fromTicks(src.uAnimTime * 8);
-    dst->uAnimLength = Duration::fromTicks(src.uAnimLength * 8);
-    dst->uFlags = src.uFlags;
+void reconstruct(const PortraitFrameData_MM7 &src, PortraitFrameData *dst) {
+    dst->portrait = static_cast<CharacterPortrait>(src.portrait);
+    dst->textureIndex = src.textureIndex;
+    dst->frameLength = Duration::fromTicks(src.frameLength * 8);
+    dst->animationLength = Duration::fromTicks(src.animationLength * 8);
+    dst->flags = static_cast<FrameFlags>(src.flags);
 }
 
 void reconstruct(const LevelDecoration_MM7 &src, LevelDecoration *dst) {
@@ -1812,11 +1790,6 @@ void snapshot(const PersistentVariables &src, PersistentVariables_MM7 *dst) {
 void reconstruct(const PersistentVariables_MM7 &src, PersistentVariables *dst) {
     dst->mapVars = src.mapVars;
     dst->decorVars = src.decorVars;
-}
-
-void reconstruct(const OutdoorLocationTileType_MM7 &src, OutdoorLocationTileType *dst) {
-    dst->tileset = static_cast<Tileset>(src.tileset);
-    dst->uTileID = src.tileId;
 }
 
 void snapshot(const SaveGameHeader &src, SaveGameHeader_MM7 *dst) {

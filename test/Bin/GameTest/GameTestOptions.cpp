@@ -7,7 +7,7 @@
 
 GameTestOptions GameTestOptions::parse(int argc, char **argv) {
     GameTestOptions result;
-    result.useConfig = false; // Tests don't need an external config.
+    result.ramFsUserData = true; // We want reproducible tests, so shouldn't depend on external user data.
     std::optional<std::string> testPath;
 
     std::unique_ptr<CliApp> app = std::make_unique<CliApp>();
@@ -31,7 +31,7 @@ GameTestOptions GameTestOptions::parse(int argc, char **argv) {
         "Use random number generators that print stack trace on each call.")->group(otherOptions);
     app->add_option(
         "--log-level", result.logLevel,
-        "Log level, one of 'trace', 'debug', 'info', 'warning', 'error', 'critical'.")->option_text("LOG_LEVEL");
+        "Log level, one of 'none', 'trace', 'debug', 'info', 'warning', 'error', 'critical'.")->option_text("LOG_LEVEL");
     app->add_flag_callback(
         "-v,--verbose", [&] { result.logLevel = LOG_TRACE; },
         "Set log level to 'trace'.");

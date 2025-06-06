@@ -9,11 +9,13 @@
 #include <regex>
 #include <string>
 
-#include "Application/GameStarter.h"
+#include "Application/Startup/GameStarter.h"
+
+#include "Engine/Data/HouseEnumFunctions.h"
 #include "Engine/Components/Random/EngineRandomComponent.h"
 #include "Engine/Tables/ItemTable.h"
-#include "Engine/Tables/BuildingTable.h"
-#include "Engine/Events/EventMap.h"
+#include "Engine/Tables/HouseTable.h"
+#include "Engine/Evt/EvtProgram.h"
 #include "Engine/Random/Random.h"
 #include "Engine/Objects/DecorationEnums.h"
 #include "Engine/Objects/DecorationList.h"
@@ -22,6 +24,8 @@
 #include "Engine/Snapshots/TableSerialization.h"
 #include "Engine/GameResourceManager.h"
 #include "Engine/MapInfo.h"
+#include "Engine/EngineFileSystem.h"
+#include "Engine/mm7_data.h"
 
 #include "GUI/UI/Houses/TownHall.h"
 
@@ -30,7 +34,6 @@
 
 #include "Utility/String/Ascii.h"
 #include "Utility/String/Format.h"
-#include "Utility/DataPath.h"
 #include "Utility/Exception.h"
 #include "Utility/UnicodeCrt.h"
 #include "Utility/String/Transformations.h"
@@ -45,11 +48,11 @@ int runItemIdCodeGen(const CodeGenOptions &options, GameResourceManager *resourc
     CodeGenMap map;
     map.insert(ITEM_NULL, "NULL", "");
 
-    for(ItemId i : itemTable.pItems.indices()) {
-        const ItemDesc &desc = itemTable.pItems[i];
+    for(ItemId i : itemTable.items.indices()) {
+        const ItemData &desc = itemTable.items[i];
         std::string icon = desc.iconName;
         std::string name = desc.name;
-        std::string description = desc.pDescription;
+        std::string description = desc.description;
 
         if (icon.empty() || icon == "null") {
             map.insert(i, "", "Unused.");
@@ -94,24 +97,24 @@ int runItemIdCodeGen(const CodeGenOptions &options, GameResourceManager *resourc
         if (enumName.starts_with("LETTER_FROM") && enumName.contains("_TO_"))
             enumName = enumName.substr(0, enumName.find("_TO_"));
 
-        if (desc.uEquipType == ITEM_TYPE_REAGENT) {
+        if (desc.type == ITEM_TYPE_REAGENT) {
             enumName = "REAGENT_" + enumName;
-        } else if (desc.uEquipType == ITEM_TYPE_POTION) {
+        } else if (desc.type == ITEM_TYPE_POTION) {
             if (!enumName.starts_with("POTION_"))
                 enumName = "POTION_" + enumName;
             if (enumName.ends_with("_POTION"))
                 enumName = enumName.substr(0, enumName.size() - 7);
-        } else if (desc.uEquipType == ITEM_TYPE_SPELL_SCROLL) {
+        } else if (desc.type == ITEM_TYPE_SPELL_SCROLL) {
             enumName = "SCROLL_" + enumName;
-        } else if (desc.uEquipType == ITEM_TYPE_BOOK) {
+        } else if (desc.type == ITEM_TYPE_BOOK) {
             enumName = "SPELLBOOK_" + enumName;
-        } else if (desc.uEquipType == ITEM_TYPE_MESSAGE_SCROLL) {
+        } else if (desc.type == ITEM_TYPE_MESSAGE_SCROLL) {
             if (enumName.ends_with("_RECIPE")) {
                 enumName = "RECIPE_" + enumName.substr(0, enumName.size() - 7);
             } else if (!enumName.starts_with("MESSAGE_")) {
                 enumName = "MESSAGE_" + enumName;
             }
-        } else if (desc.uEquipType == ITEM_TYPE_GOLD) {
+        } else if (desc.type == ITEM_TYPE_GOLD) {
             if (description == "A small pile of gold coins.") {
                 enumName = "GOLD_SMALL";
             } else if (description == "A pile of gold coins.") {
@@ -121,15 +124,15 @@ int runItemIdCodeGen(const CodeGenOptions &options, GameResourceManager *resourc
             } else {
                 throw Exception("Unrecognized gold pile description '{}'", description);
             }
-        } else if (desc.uEquipType == ITEM_TYPE_GEM) {
+        } else if (desc.type == ITEM_TYPE_GEM) {
             enumName = "GEM_" + enumName;
         }
 
-        if (desc.uMaterial == RARITY_ARTIFACT) {
+        if (desc.rarity == RARITY_ARTIFACT) {
             enumName = "ARTIFACT_" + enumName;
-        } else if (desc.uMaterial == RARITY_RELIC) {
+        } else if (desc.rarity == RARITY_RELIC) {
             enumName = "RELIC_" + enumName;
-        } else if (desc.uMaterial == RARITY_SPECIAL) {
+        } else if (desc.rarity == RARITY_SPECIAL) {
             enumName = "SPECIAL_" + enumName;
         } else if (description.starts_with("Quest")) {
             enumName = "QUEST_" + enumName;
@@ -177,7 +180,7 @@ int runBeaconsCodeGen(const CodeGenOptions &options, GameResourceManager *resour
     MapStats mapStats;
     mapStats.Initialize(resourceManager->getEventsFile("MapStats.txt"));
 
-    LodReader gamesLod(makeDataPath("data", "games.lod"));
+    LodReader gamesLod(dfs->read("data/games.lod"));
     std::vector<std::string> fileNames = gamesLod.ls();
 
     for (size_t i = 0; i < fileNames.size(); i++) {
@@ -195,28 +198,28 @@ int runHouseIdCodeGen(const CodeGenOptions &options, GameResourceManager *resour
     MapStats mapStats;
     mapStats.Initialize(resourceManager->getEventsFile("MapStats.txt"));
 
-    initializeBuildings(resourceManager->getEventsFile("2dEvents.txt"));
-    // ^ Initializes buildingTable.
+    initializeHouses(resourceManager->getEventsFile("2dEvents.txt"));
+    // ^ Initializes houseTable.
 
     std::unordered_map<HouseId, std::set<std::string>> mapNamesByHouseId; // Only arbiter exists on two maps.
 
-    LodReader gamesLod(makeDataPath("data", "games.lod"));
+    LodReader gamesLod(dfs->read("data/games.lod"));
     for (const std::string &fileName : gamesLod.ls()) {
         if (!fileName.ends_with(".odm") && !fileName.ends_with(".blv"))
             continue; // Not a level file.
 
         std::string mapName = mapIdEnumName(mapInfoByFileName(mapStats, fileName));
-        EventMap eventMap = EventMap::load(resourceManager->getEventsFile(fileName.substr(0, fileName.size() - 4) + ".evt"));
+        EvtProgram eventMap = EvtProgram::load(resourceManager->getEventsFile(fileName.substr(0, fileName.size() - 4) + ".evt"));
 
         for (const EventTrigger &trigger : eventMap.enumerateTriggers(EVENT_SpeakInHouse)) {
-            HouseId houseId = eventMap.event(trigger.eventId, trigger.eventStep).data.house_id;
+            HouseId houseId = eventMap.instruction(trigger.eventId, trigger.eventStep).data.house_id;
             if (houseId == HOUSE_INVALID)
                 throw Exception("Invalid house id encountered in house event");
             mapNamesByHouseId[houseId].insert(mapName);
         }
 
         for (const EventTrigger &trigger : eventMap.enumerateTriggers(EVENT_MoveToMap)) {
-            HouseId houseId = eventMap.event(trigger.eventId, trigger.eventStep).data.move_map_descr.house_id;
+            HouseId houseId = eventMap.instruction(trigger.eventId, trigger.eventStep).data.move_map_descr.house_id;
             if (houseId != HOUSE_INVALID)
                 mapNamesByHouseId[houseId].insert(mapName);
         }
@@ -225,8 +228,8 @@ int runHouseIdCodeGen(const CodeGenOptions &options, GameResourceManager *resour
     CodeGenMap map;
     map.insert(HOUSE_INVALID, "INVALID", "");
 
-    for (HouseId i : buildingTable.indices()) {
-        const BuildingDesc &desc = buildingTable[i];
+    for (HouseId i : houseTable.indices()) {
+        const HouseData &desc = houseTable[i];
         bool hasMap = mapNamesByHouseId.contains(i);
         std::string mapName;
         if (hasMap)
@@ -234,9 +237,9 @@ int runHouseIdCodeGen(const CodeGenOptions &options, GameResourceManager *resour
 
         if (i == HOUSE_JAIL) {
             map.insert(i, "JAIL", "");
-        } else if (desc.uType == BUILDING_INVALID && hasMap) {
+        } else if (desc.uType == HOUSE_TYPE_INVALID && hasMap) {
             map.insert(i, "", fmt::format("Used in MAP_{} but invalid, hmm...", mapName));
-        } else if (desc.uType == BUILDING_INVALID) {
+        } else if (desc.uType == HOUSE_TYPE_INVALID) {
             map.insert(i, "", "Unused.");
         } else if (!hasMap && !desc.name.empty()) {
             map.insert(i, "", fmt::format("Unused {} named \"{}\".", toString(desc.uType), desc.name));
@@ -244,7 +247,7 @@ int runHouseIdCodeGen(const CodeGenOptions &options, GameResourceManager *resour
             map.insert(i, "", "Unused.");
         } else if (toUpperCaseEnum(desc.name) == fmt::format("HOUSE_{}", std::to_underlying(i))) {
             map.insert(i, "", fmt::format("Used in MAP_{}, named \"{}\", looks totally like a placeholder...", mapName, desc.name));
-        } else if (desc.uType == BUILDING_HOUSE || desc.uType == BUILDING_MERCENARY_GUILD) {
+        } else if (desc.uType == HOUSE_TYPE_HOUSE || desc.uType == HOUSE_TYPE_MERCENARY_GUILD) {
             map.insert(i, fmt::format("{}_{}", mapName, toUpperCaseEnum(desc.name)), "");
         } else {
             map.insert(i, fmt::format("{}_{}", toString(desc.uType), mapName), fmt::format("\"{}\".", trim(desc.name)));
@@ -476,6 +479,92 @@ int runDecorationsCodegen(const CodeGenOptions &options, GameResourceManager *re
     return 0;
 }
 
+int runSpeechPortraitsCodegen(const CodeGenOptions &options, GameResourceManager *resourceManager) {
+    std::vector<std::array<std::string, 7>> table;
+    for (CharacterSpeech speech : portraitVariants.indices()) {
+        auto &line = table.emplace_back();
+        line[0] = fmt::format("{{{}, ", toString(speech));
+        line[1] = "{";
+        for (int i = 2; auto portrait : portraitVariants[speech])
+            line[i++] = toString(portrait) + ", ";
+        line[6].pop_back();
+        line[6].pop_back(); // Drop the last ", ".
+        line[6] += "}},";
+    }
+
+    // Dump!
+    dumpAligned(stdout, "    ", table);
+    return 0;
+}
+
+int runLstrCodegen(const CodeGenOptions &options, GameResourceManager *resourceManager) {
+    CodeGenMap map;
+
+    std::string txt = std::string(resourceManager->getEventsFile("global.txt").string_view());
+
+    std::vector<std::string_view> lines = split(txt, '\n');
+    for (std::string_view &line : lines)
+        if (line.ends_with('\r'))
+            line = line.substr(0, line.size() - 1);
+
+    std::vector<std::string_view> chunks;
+    for (std::string_view line : std::views::drop(lines, 1)) {
+        if (line.empty())
+            continue;
+
+        split(line, '\t', &chunks);
+        if (chunks.size() != 2)
+            throw Exception("Invalid localization file");
+
+        int id = fromString<int>(chunks[0]);
+        std::string text = trimRemoveQuotes(chunks[1]);
+
+        std::string enumName = toUpperCaseEnum(text);
+        if (enumName.size() > 40) {
+            auto pos = enumName.rfind('_', 40);
+            if (pos != std::string_view::npos)
+                enumName = enumName.substr(0, pos);
+        }
+
+        if (id == 72) {
+            enumName = "EMPTY_SAVE";
+        } else if (id == 79) {
+            enumName = "EXIT_DIALOGUE";
+        } else if (id == 99 || id == 101 || id == 103 || id == 106) {
+            enumName = "RACE_" + enumName;
+        } else if (id == 379 || id == 392 || id == 399 || id == 402 || id == 434) {
+            enumName = "REPUTATION_" + enumName;
+        } else if (id >= 506 && id <= 509) {
+            enumName = "NAME_" + enumName;
+        } else if (id >= 578 && id <= 581) {
+            enumName = "ARENA_DIFFICULTY_" + enumName;
+        } else if (id == 630) {
+            enumName = "UNKNOWN_VALUE";
+        } else if (id == 675) {
+            enumName = "GOOD_ENDING";
+        } else if (id == 676) {
+            enumName = "EVIL_ENDING";
+        } else if (enumName == "DAY" || enumName == "SIR" || enumName == "LADY") {
+            enumName += std::isupper(text[0]) ? "_CAPITALIZED" : "_LOWERCASE";
+        }
+
+        if (text.size() > 80) {
+            auto pos = text.find_last_of(",. ", 80);
+            if (pos != std::string_view::npos)
+                text = text.substr(0, pos) + "...";
+        }
+
+        for (char &c : text)
+            if (c < '\0' || c > '\x7f')
+                c = ' ';
+
+        map.insert(id, enumName, "\"" + text + "\"");
+    }
+
+    map.dump(stdout, "LSTR_");
+    return 0;
+}
+
 int platformMain(int argc, char **argv) {
     try {
         UnicodeCrt _(argc, argv);
@@ -498,6 +587,8 @@ int platformMain(int argc, char **argv) {
         case CodeGenOptions::SUBCOMMAND_BOUNTY_HUNT: return runBountyHuntCodeGen(options, &resourceManager);
         case CodeGenOptions::SUBCOMMAND_MUSIC: return runMusicCodeGen(options, &resourceManager);
         case CodeGenOptions::SUBCOMMAND_DECORATIONS: return runDecorationsCodegen(options, &resourceManager);
+        case CodeGenOptions::SUBCOMMAND_SPEECH_PORTRAITS: return runSpeechPortraitsCodegen(options, &resourceManager);
+        case CodeGenOptions::SUBCOMMAND_LSTR_ID: return runLstrCodegen(options, &resourceManager);
         default:
             assert(false);
             return 1;

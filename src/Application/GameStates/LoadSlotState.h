@@ -9,6 +9,7 @@ class GUIWindow_Load;
 class LoadSlotState : public FsmState {
  public:
     LoadSlotState();
+    ~LoadSlotState();
     virtual FsmAction update() override;
     virtual FsmAction enter() override;
     virtual void exit() override;

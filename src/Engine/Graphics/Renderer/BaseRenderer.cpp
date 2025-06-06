@@ -1,5 +1,6 @@
 #include "BaseRenderer.h"
 
+#include <algorithm>
 #include <cassert>
 #include <utility>
 #include <vector>
@@ -7,8 +8,6 @@
 #include "Engine/Engine.h"
 #include "Engine/SpellFxRenderer.h"
 #include "Engine/Party.h"
-#include "Engine/LodTextureCache.h"
-#include "Engine/LodSpriteCache.h"
 
 #include "Engine/Objects/Actor.h"
 #include "Engine/Objects/SpriteObject.h"
@@ -26,22 +25,16 @@
 #include "Engine/Objects/Decoration.h"
 #include "Engine/Objects/DecorationList.h"
 #include "Engine/Graphics/Image.h"
-#include "Engine/AssetsManager.h"
 #include "Engine/EngineGlobals.h"
 #include "Engine/Random/Random.h"
 
-#include "Library/Image/PCX.h"
-#include "Library/Image/ImageFunctions.h"
 #include "Library/Logger/Logger.h"
 
 #include "Utility/Math/TrigLut.h"
-#include "Utility/Streams/FileOutputStream.h"
 #include "Utility/Memory/MemSet.h"
-#include "Utility/DataPath.h"
 
 bool BaseRenderer::Initialize() {
     updateRenderDimensions();
-    CreateZBuffer();
     return true;
 }
 
@@ -381,7 +374,6 @@ void BaseRenderer::TransformBillboardsAndSetPalettesODM() {
     SoftwareBillboard billboard = {0};
     billboard.sParentBillboardID = -1;
     //  billboard.pTarget = render->pTargetSurface;
-    billboard.pTargetZ = render->pActiveZBuffer;
     //  billboard.uTargetPitch = render->uTargetSurfacePitch;
     billboard.uViewportX = pViewport->uViewportTL_X;
     billboard.uViewportY = pViewport->uViewportTL_Y;
@@ -608,7 +600,7 @@ void BaseRenderer::DrawTransparentGreenShade(float u, float v, GraphicsImage *pT
     DrawMasked(u, v, pTexture, 0, colorTable.Green);
 }
 
-void BaseRenderer::DrawMasked(float u, float v, GraphicsImage *pTexture, unsigned int color_dimming_level, Color mask) {
+void BaseRenderer::DrawMasked(float u, float v, GraphicsImage *pTexture, int color_dimming_level, Color mask) {
     int b = mask.b & (0xFF >> color_dimming_level);
     int g = mask.g & (0xFF >> color_dimming_level);
     int r = mask.r & (0xFF >> color_dimming_level);
@@ -676,14 +668,14 @@ void BaseRenderer::BillboardSphereSpellFX(SpellFX_Billboard *a1, Color diffuse) 
     }
 }
 
-void BaseRenderer::DrawMonsterPortrait(Recti rc, SpriteFrame *Portrait, int Y_Offset) {
+void BaseRenderer::DrawMonsterPortrait(const Recti &rc, SpriteFrame *Portrait, int Y_Offset) {
     Recti rct;
     rct.x = rc.x + 64 + Portrait->hw_sprites[0]->uAreaX - Portrait->hw_sprites[0]->uWidth / 2;
     rct.y = rc.y + Y_Offset + Portrait->hw_sprites[0]->uAreaY;
     rct.w = Portrait->hw_sprites[0]->uWidth;
     rct.h = Portrait->hw_sprites[0]->uHeight;
 
-    render->SetUIClipRect(rc.x, rc.y, rc.x + rc.w, rc.y + rc.h);
+    render->SetUIClipRect(rc);
     render->DrawImage(Portrait->hw_sprites[0]->texture, rct, Portrait->GetPaletteIndex());
     render->ResetUIClipRect();
 }
@@ -740,49 +732,22 @@ std::vector<Actor*> BaseRenderer::getActorsInViewport(int pDepth) {
     return foundActors;
 }
 
-// TODO(pskelton): z buffer must go
-void BaseRenderer::CreateZBuffer() {
-    if (pActiveZBuffer)
-        free(pActiveZBuffer);
-
-    pActiveZBuffer = (int*)malloc(outputRender.w * outputRender.h * sizeof(int));
-    if (!pActiveZBuffer)
-        logger->error("Failed to create zbuffer");
-
-    ClearZBuffer();
-}
-
-// TODO(pskelton): z buffer must go
 void BaseRenderer::ClearZBuffer() {
-    memset32(this->pActiveZBuffer, 0xFFFF0000, outputRender.w * outputRender.h);
+    _equipmentHitMap.clear();
 }
 
-// TODO(pskelton): zbuffer must go
 void BaseRenderer::ZDrawTextureAlpha(float u, float v, GraphicsImage *img, int zVal) {
     if (!img) return;
 
-    int uOutX = static_cast<int>(u * outputRender.w);
-    int uOutY = static_cast<int>(v * outputRender.h);
-    const RgbaImage &image = img->rgba();
+    // Convert normalized coordinates to screen pixel coordinates
+    int screenX = static_cast<int>(u * outputRender.w);
+    int screenY = static_cast<int>(v * outputRender.h);
 
-    if (uOutX < 0)
-        uOutX = 0;
-    if (uOutY < 0)
-        uOutY = 0;
-
-    for (int ys = 0; ys < image.height(); ys++) {
-        auto imageLine = image[ys];
-        for (int xs = 0; xs < image.width(); xs++) {
-            if (imageLine[xs].a != 0) {
-                this->pActiveZBuffer[uOutX + xs + outputRender.w * (uOutY + ys)] = zVal;
-            }
-        }
-    }
+    _equipmentHitMap.add(Pointi(screenX, screenY), img, zVal);
 }
 
 bool BaseRenderer::Reinitialize(bool firstInit) {
     updateRenderDimensions();
-    CreateZBuffer();
     return true;
 }
 
@@ -800,4 +765,8 @@ void BaseRenderer::updateRenderDimensions() {
         outputRender = {config->graphics.RenderWidth.value(), config->graphics.RenderHeight.value()};
     else
         outputRender = outputPresent;
+}
+
+int BaseRenderer::QueryEquipmentHitMap(Pointi screenPos) {
+    return _equipmentHitMap.query(screenPos, 0);
 }

@@ -16,20 +16,21 @@
 #include "Engine/Engine.h"
 #include "Engine/LOD.h"
 #include "Engine/PriceCalculator.h"
+#include "Engine/Graphics/Outdoor.h"
 #include "Engine/Graphics/ParticleEngine.h"
 
 #include "Media/Audio/AudioPlayer.h"
 
 static bool characterHasJar(int charIndex, int jarIndex) {
-    for (const ItemGen &item : pParty->pCharacters[charIndex].pInventoryItemList)
-        if (item.uItemID == ITEM_QUEST_LICH_JAR_FULL && item.uHolderPlayer == jarIndex)
+    for (const Item &item : pParty->pCharacters[charIndex].pInventoryItemList)
+        if (item.itemId == ITEM_QUEST_LICH_JAR_FULL && item.lichJarCharacterIndex == jarIndex)
             return true;
     return false;
 }
 
 // 1000
 
-GAME_TEST(Issues, Issues1004) {
+GAME_TEST(Issues, Issue1004) {
     // Collisions: Can walk right through the bridge on Emerald Isle
     auto xTape = tapes.custom([] { return pParty->pos.x; });
     test.playTraceFromTestData("issue_1004.mm7", "issue_1004.json");
@@ -53,7 +54,7 @@ GAME_TEST(Issues, Issue1034) {
     auto houseTape = tapes.house();
     auto statusTape = tapes.statusBar();
     test.playTraceFromTestData("issue_1034.mm7", "issue_1034.json");
-    EXPECT_TRUE(statusTape.contains("Select Target")); // Telekinesis message.
+    EXPECT_CONTAINS(statusTape, "Select Target"); // Telekinesis message.
     EXPECT_EQ(houseTape, tape(HOUSE_INVALID, HOUSE_WEAPON_SHOP_EMERALD_ISLAND)); // We have entered into the shop.
 }
 
@@ -69,7 +70,7 @@ GAME_TEST(Issues, Issue1038) {
     auto conditionsTape = charTapes.conditions();
     test.playTraceFromTestData("issue_1038.mm7", "issue_1038.json");
     EXPECT_EQ(conditionsTape.frontBack(), tape({CONDITION_GOOD, CONDITION_INSANE, CONDITION_GOOD, CONDITION_INSANE},
-                                               {CONDITION_SLEEP, CONDITION_INSANE, CONDITION_UNCONSCIOUS, CONDITION_UNCONSCIOUS}));
+                                               {CONDITION_SLEEP, CONDITION_UNCONSCIOUS, CONDITION_GOOD, CONDITION_UNCONSCIOUS}));
 }
 
 GAME_TEST(Issues, Issue1040) {
@@ -91,7 +92,8 @@ GAME_TEST(Issues, Issue1068) {
     // Kills assert if characters don't have learning skill, but party has an npc that gives learning boost.
     auto expTape = charTapes.experiences();
     test.playTraceFromTestData("issue_1068.mm7", "issue_1068.json");
-    EXPECT_EQ(expTape.frontBack(), tape({158039, 156727, 157646, 157417}, {158518, 157206, 158125, 157896}));
+    // party has a scholar +5%
+    EXPECT_EQ(expTape.frontBack(), tape({158039, 156727, 157646, 157417}, {158485, 157173, 158092, 157863}));
 }
 
 GAME_TEST(Issues, Issue1093) {
@@ -102,8 +104,8 @@ GAME_TEST(Issues, Issue1093) {
     test.playTraceFromTestData("issue_1093.mm7", "issue_1093.json");
     EXPECT_EQ(screenTape, tape(SCREEN_GAME, SCREEN_SPELL_BOOK, SCREEN_GAME));
     EXPECT_EQ(manaTape, tape(355, 356)); // +1 mana from mana regen, no mana spent on spells.
-    EXPECT_TRUE(statusTape.contains("Cast Town Portal"));
-    EXPECT_TRUE(statusTape.contains("Spell failed"));
+    EXPECT_CONTAINS(statusTape, "Cast Town Portal");
+    EXPECT_CONTAINS(statusTape, "Spell failed");
 }
 
 // 1100
@@ -115,7 +117,7 @@ GAME_TEST(Issues, Issue1115) {
     auto levelTape = charTapes.levels();
     test.playTraceFromTestData("issue_1115.mm7", "issue_1115.json");
     EXPECT_EQ(mapTape, tape(MAP_HARMONDALE, MAP_ARENA)); // Harmondale -> Arena.
-    EXPECT_TRUE(dialogueTape.contains(DIALOGUE_ARENA_SELECT_LORD));
+    EXPECT_CONTAINS(dialogueTape, DIALOGUE_ARENA_SELECT_LORD);
     EXPECT_EQ(levelTape, tape({21, 21, 21, 21}));
 }
 
@@ -123,29 +125,29 @@ GAME_TEST(Issues, Issue1155) {
     // Crash when pressing [Game Options] while talking to NPCs
     auto screenTape = tapes.screen();
     test.playTraceFromTestData("issue_1155.mm7", "issue_1155.json");
-    EXPECT_FALSE(screenTape.contains(SCREEN_SPELL_BOOK));
-    EXPECT_FALSE(screenTape.contains(SCREEN_REST));
-    EXPECT_FALSE(screenTape.contains(SCREEN_QUICK_REFERENCE));
-    EXPECT_FALSE(screenTape.contains(SCREEN_OPTIONS));
-    EXPECT_FALSE(screenTape.contains(SCREEN_BOOKS));
-    EXPECT_TRUE(screenTape.contains(SCREEN_CHARACTERS));
-    EXPECT_TRUE(screenTape.contains(SCREEN_BRANCHLESS_NPC_DIALOG));
+    EXPECT_MISSES(screenTape, SCREEN_SPELL_BOOK);
+    EXPECT_MISSES(screenTape, SCREEN_REST);
+    EXPECT_MISSES(screenTape, SCREEN_QUICK_REFERENCE);
+    EXPECT_MISSES(screenTape, SCREEN_OPTIONS);
+    EXPECT_MISSES(screenTape, SCREEN_BOOKS);
+    EXPECT_CONTAINS(screenTape, SCREEN_CHARACTERS);
+    EXPECT_CONTAINS(screenTape, SCREEN_BRANCHLESS_NPC_DIALOG);
 }
 
 GAME_TEST(Issues, Issue1164) {
-    // CHARACTER_EXPRESSION_NO animation ending abruptly - should show the character moving his/her head to the left,
+    // PORTRAIT_NO animation ending abruptly - should show the character moving his/her head to the left,
     // then to the right.
-    auto expressionTape = tapes.custom([] { return std::pair(pParty->pCharacters[0].expression, pEventTimer->time()); });
+    auto expressionTape = tapes.custom([] { return std::pair(pParty->pCharacters[0].portrait, pEventTimer->time()); });
     auto frameTimeTape = tapes.config(engine->config->debug.TraceFrameTimeMs);
     test.playTraceFromTestData("issue_1164.mm7", "issue_1164.json");
     EXPECT_EQ(frameTimeTape, tape(15)); // Don't redo at other frame rates.
 
-    auto isNo = [] (const auto &pair) { return pair.first == CHARACTER_EXPRESSION_NO; };
+    auto isNo = [] (const auto &pair) { return pair.first == PORTRAIT_NO; };
     auto begin = std::find_if(expressionTape.begin(), expressionTape.end(), isNo);
     auto end = std::find_if_not(begin, expressionTape.end(), isNo);
     ASSERT_NE(end, expressionTape.end());
 
-    // CHARACTER_EXPRESSION_NO should take 144 ticks, minus one frame. This one frame is an implementation artifact,
+    // PORTRAIT_NO should take 144 ticks, minus one frame. This one frame is an implementation artifact,
     // shouldn't really be there, but for now we test it the way it actually works.
     auto ticks = end->second - begin->second;
     Duration frameTicks = Duration::fromRealtimeMilliseconds(15 + (1_ticks).realtimeMilliseconds() - 1 /* Round up! */);
@@ -162,42 +164,63 @@ GAME_TEST(Issues, Issue1175) {
 }
 
 GAME_TEST(Issues, Issue1191) {
+    // Warlock's dragon should add +3 to Self magic skills. Dragon also consumes food when resting.
     auto foodTape = tapes.food();
+    auto timeTape = tapes.time();
     test.playTraceFromTestData("issue_1191.mm7", "issue_1191.json");
 
+    EXPECT_EQ(pParty->pCharacters[0].classType, CLASS_WARLOCK);
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_FIRE).level(), 7);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_FIRE).level(), 10);
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_AIR).level(), 1);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_AIR).level(), 4);
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_WATER).level(), 1);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_WATER).level(), 4);
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_EARTH).level(), 1);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_EARTH).level(), 4);
-
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_SPIRIT).level(), 1);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_SPIRIT).level(), 4);
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_MIND).level(), 4);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_MIND).level(), 9); // 4, +3 dragon, +2 Ruler's ring
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_BODY).level(), 1);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_BODY).level(), 4);
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_DARK).level(), 0);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_DARK).level(), 0);
+    EXPECT_EQ(pParty->pCharacters[0].getSkillValue(CHARACTER_SKILL_LIGHT).level(), 0);
     EXPECT_EQ(pParty->pCharacters[0].getActualSkillValue(CHARACTER_SKILL_LIGHT).level(), 0);
 
+    EXPECT_EQ(pParty->pCharacters[2].classType, CLASS_WARLOCK);
+    EXPECT_EQ(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_FIRE).level(), 1);
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_FIRE).level(), 4);
+    EXPECT_LE(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_AIR).level(), 0);
     EXPECT_LE(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_AIR).level(), 3); // She has no skill. 0 or 3 skill level is fine
+    EXPECT_EQ(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_WATER).level(), 1);
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_WATER).level(), 4);
+    EXPECT_EQ(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_EARTH).level(), 10);
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_EARTH).level(), 18); // 10, +3 dragon, +5 ring
-
+    EXPECT_EQ(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_SPIRIT).level(), 10);
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_SPIRIT).level(), 13);
+    EXPECT_EQ(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_MIND).level(), 1);
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_MIND).level(), 4);
+    EXPECT_EQ(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_BODY).level(), 10);
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_BODY).level(), 18); // 10, +3 dragon, +5 ring
+    EXPECT_EQ(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_DARK).level(), 0);
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_DARK).level(), 0);
+    EXPECT_EQ(pParty->pCharacters[2].getSkillValue(CHARACTER_SKILL_LIGHT).level(), 0);
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_LIGHT).level(), 0);
 
-    EXPECT_EQ(foodTape.delta(), -3);
-    EXPECT_EQ(pParty->GetFood(), 7);
+    EXPECT_GT(timeTape.delta(), Duration::fromHours(8));
+    EXPECT_EQ(pOutdoor->getNumFoodRequiredToRestInCurrentPos(pParty->pos), 2);
+    EXPECT_EQ(foodTape.delta(), -3); // Dragon consumed 1 additional food.
 }
 
 GAME_TEST(Issues, Issue1196) {
     // Assert fails in Character::playEmotion when character looks down
-    auto expr = tapes.custom([] { return pParty->activeCharacter().expression; });
+    auto expr = tapes.custom([] { return pParty->activeCharacter().portrait; });
     test.playTraceFromTestData("issue_1196.mm7", "issue_1196.json");
-    EXPECT_FALSE(expr.contains(CHARACTER_EXPRESSION_32));
-    EXPECT_TRUE(expr.contains(CHARACTER_EXPRESSION_LOOK_UP));
-    EXPECT_TRUE(expr.contains(CHARACTER_EXPRESSION_LOOK_DOWN));
+    EXPECT_MISSES(expr, PORTRAIT_32);
+    EXPECT_CONTAINS(expr, PORTRAIT_LOOK_UP);
+    EXPECT_CONTAINS(expr, PORTRAIT_LOOK_DOWN);
 }
 
 GAME_TEST(Issues, Issue1197) {
@@ -205,7 +228,7 @@ GAME_TEST(Issues, Issue1197) {
     auto loc = tapes.map();
     auto deaths = tapes.deaths();
     test.playTraceFromTestData("issue_1197.mm7", "issue_1197.json");
-    EXPECT_TRUE(loc.contains(MAP_EMERALD_ISLAND)); // make it back to emerald
+    EXPECT_CONTAINS(loc, MAP_EMERALD_ISLAND); // make it back to emerald
     EXPECT_EQ(deaths.delta(), 1);
 }
 
@@ -276,7 +299,7 @@ GAME_TEST(Issues, Issue1272) {
     });
     test.playTraceFromTestData("issue_1272.mm7", "issue_1272.json");
     EXPECT_EQ(deathsTape.delta(), +1); // Party did die.
-    EXPECT_TRUE(screenTape.contains(SCREEN_VIDEO)); // Party death video should have played.
+    EXPECT_CONTAINS(screenTape, SCREEN_VIDEO); // Party death video should have played.
     EXPECT_GT(actorWiggleAfterDeath.size(), 2); // Time did flow after respawn, and actors did move around.
 }
 
@@ -299,14 +322,14 @@ GAME_TEST(Issues, Issue1274) {
 
 GAME_TEST(Issues, Issue1275) {
     // Clicking a store button while holding item causes black screen
-    auto heldTape = tapes.custom([] {return pParty->pPickedItem.uItemID; });
+    auto heldTape = tapes.custom([] {return pParty->pPickedItem.itemId; });
     auto dialoTape = tapes.custom([] {if (window_SpeakInHouse != nullptr) return window_SpeakInHouse->getCurrentDialogue(); return DIALOGUE_NULL; });
     test.playTraceFromTestData("issue_1275.mm7", "issue_1275.json");
     // make sure item is returned to inventory
     EXPECT_EQ(heldTape.frontBack(), tape(ITEM_NULL, ITEM_NULL));
-    EXPECT_TRUE(heldTape.contains(ITEM_LEATHER_ARMOR));
+    EXPECT_CONTAINS(heldTape, ITEM_LEATHER_ARMOR);
     // and we reach sell dialog
-    EXPECT_TRUE(dialoTape.contains(DIALOGUE_SHOP_SELL));
+    EXPECT_CONTAINS(dialoTape, DIALOGUE_SHOP_SELL);
 }
 
 GAME_TEST(Issues, Issue1277) {
@@ -338,8 +361,8 @@ GAME_TEST(Issues, Issue1294_1389) {
     test.playTraceFromTestData("issue_1294.mm7", "issue_1294.json");
 
     // Check that we get back to stats screen without asserting
-    EXPECT_TRUE(windowTape.contains(WindowType::WINDOW_CharacterWindow_Inventory));
-    EXPECT_EQ(windowTape.back(), WindowType::WINDOW_CharacterWindow_Stats);
+    EXPECT_CONTAINS(windowTape, WINDOW_CharacterWindow_Inventory);
+    EXPECT_EQ(windowTape.back(), WINDOW_CharacterWindow_Stats);
     // Check min values are used
     EXPECT_EQ(pParty->pCharacters[0].GetAttackRecoveryTime(false), Duration::fromTicks(engine->config->gameplay.MinRecoveryBlasters.value()));
     EXPECT_EQ(pParty->pCharacters[2].GetAttackRecoveryTime(true), Duration::fromTicks(engine->config->gameplay.MinRecoveryRanged.value()));
@@ -366,8 +389,8 @@ GAME_TEST(Prs, Pr1325) {
     auto vialsTape = tapes.mapItemCount(ITEM_REAGENT_VIAL_OF_TROLL_BLOOD);
     auto deadTape = actorTapes.countByState(AIState::Dead);
     test.playTraceFromTestData("pr_1325.mm7", "pr_1325.json");
-    EXPECT_EQ(vialsTape.delta(), +6);
-    EXPECT_EQ(deadTape.delta(), +84); // Too much armageddon...
+    EXPECT_GE(vialsTape.delta(), +4); // We got some vials.
+    EXPECT_EQ(deadTape.delta(), +84); // And a lot of dead Trolls.
 }
 
 GAME_TEST(Issues, Issue1331) {
@@ -387,7 +410,7 @@ GAME_TEST(Issues, Issue1331) {
     // This just means that the Titans' physical resistance was never "lucky enough" to roll the damage down to 1 two
     // times in a row.
     EXPECT_EQ(rngTape, tape(RANDOM_ENGINE_SEQUENTIAL));
-    EXPECT_EQ(pParty->pCharacters[2].GetBowItem()->special_enchantment, ITEM_ENCHANTMENT_TITAN_SLAYING);
+    EXPECT_EQ(pParty->pCharacters[2].GetBowItem()->specialEnchantment, ITEM_ENCHANTMENT_TITAN_SLAYING);
     EXPECT_EQ(pParty->pCharacters[2].GetRangedDamageString(), "41 - 45");
     auto damageRange = hpsTape.reversed().adjacentDeltas().flattened().filtered([] (int damage) { return damage > 0; }).minMax();
     EXPECT_EQ(damageRange, tape(3, (43 + 13) * 2));
@@ -405,8 +428,8 @@ GAME_TEST(Issues, Issue1338) {
     EXPECT_EQ(deadTape, tape(std::initializer_list<int>{}, {18}, std::initializer_list<int>{})); // Alive -> Dead -> corpse picked up.
     EXPECT_GT(peasantGoldTape.max(), 0); // Peasant should have had gold generated.
     EXPECT_EQ(goldTape.delta(), peasantGoldTape.max());
-    EXPECT_TRUE(statusTape.contains(fmt::format("{} gold", peasantGoldTape.max()))); // Telepathy status message.
-    EXPECT_TRUE(statusTape.contains(fmt::format("You found {} gold!", peasantGoldTape.max()))); // Corpse pickup message.
+    EXPECT_CONTAINS(statusTape, fmt::format("{} gold", peasantGoldTape.max())); // Telepathy status message.
+    EXPECT_CONTAINS(statusTape, fmt::format("You found {} gold!", peasantGoldTape.max())); // Corpse pickup message.
 }
 
 GAME_TEST(Issues, Issue1340) {
@@ -421,13 +444,14 @@ GAME_TEST(Issues, Issue1340) {
         Blob origHarmondale = pGames_LOD->read("d29.dlv");
         EXPECT_EQ(saveHarmondale.string_view(), origHarmondale.string_view());
     });
-    EXPECT_EQ(mapTape, tape(MAP_EMERALD_ISLAND, MAP_CASTLE_HARMONDALE)); // Emerald Isle -> Castle Harmondale. Map change is important because
-                                                      // we want to trigger map respawn on first visit.
-    EXPECT_TRUE(screenTape.contains(SCREEN_CHEST));
+
+    // Emerald Isle -> Castle Harmondale. Map change is important because we want to trigger map respawn on first visit.
+    EXPECT_EQ(mapTape, tape(MAP_EMERALD_ISLAND, MAP_CASTLE_HARMONDALE));
+    EXPECT_CONTAINS(screenTape, SCREEN_CHEST);
     EXPECT_GT(goldTape.delta(), 0); // Party should have picked some gold from the chest.
-    EXPECT_FALSE(statusTape.contains("You found 0 gold!")); // No piles of 0 size.
+    EXPECT_MISSES(statusTape, "You found 0 gold!"); // No piles of 0 size.
     for (int gold : goldTape.adjacentDeltas())
-        EXPECT_TRUE(statusTape.contains(fmt::format("You found {} gold!", gold)));
+        EXPECT_CONTAINS(statusTape, fmt::format("You found {} gold!", gold));
 }
 
 GAME_TEST(Issues, Issue1341) {
@@ -437,8 +461,8 @@ GAME_TEST(Issues, Issue1341) {
     auto deadTape = actorTapes.countByState(AIState::Dead);
     test.playTraceFromTestData("issue_1341.mm7", "issue_1341.json");
     EXPECT_GT(goldTape.delta(), 0); // We did steal some gold.
-    EXPECT_TRUE(statusTape.contains("Roderick failed to steal anything!")); // We have tried many times.
-    EXPECT_TRUE(statusTape.contains(fmt::format("Roderick stole {} gold!", goldTape.delta()))); // And succeeded.
+    EXPECT_CONTAINS(statusTape, "Roderick failed to steal anything!"); // We have tried many times.
+    EXPECT_CONTAINS(statusTape, fmt::format("Roderick stole {} gold!", goldTape.delta())); // And succeeded.
     EXPECT_EQ(deadTape, tape(0)); // No one died in the process.
 }
 
@@ -455,9 +479,9 @@ GAME_TEST(Issues, Issue1342) {
 
     EXPECT_GT(goldTape.delta(), 0); // We picked up some gold.
     EXPECT_EQ(pilesTape.max() - pilesTape.back(), 3); // Minus three small gold piles.
-    EXPECT_FALSE(statusTape.contains("You found 0 gold!")); // No piles of 0 size.
+    EXPECT_MISSES(statusTape, "You found 0 gold!"); // No piles of 0 size.
     for (int gold : goldTape.adjacentDeltas())
-        EXPECT_TRUE(statusTape.contains(fmt::format("You found {} gold!", gold)));
+        EXPECT_CONTAINS(statusTape, fmt::format("You found {} gold!", gold));
 }
 
 GAME_TEST(Issues, Issue1362) {
@@ -487,10 +511,10 @@ GAME_TEST(Issues, Issue1364) {
     auto screenTape = tapes.screen();
     test.playTraceFromTestData("issue_1364.mm7", "issue_1364.json");
     EXPECT_EQ(mapTape, tape(MAP_HARMONDALE, MAP_ARENA)); // Harmondale -> Arena.
-    EXPECT_TRUE(statusTape.contains("No saving in the Arena")); // Clicking the save button didn't work.
-    EXPECT_TRUE(screenTape.contains(SCREEN_HOUSE)); // We have visited the stables.
-    EXPECT_TRUE(screenTape.contains(SCREEN_MENU)); // Opened the game menu while in the Arena.
-    EXPECT_FALSE(screenTape.contains(SCREEN_SAVEGAME)); // But save menu didn't open on click.
+    EXPECT_CONTAINS(statusTape, "No saving in the Arena"); // Clicking the save button didn't work.
+    EXPECT_CONTAINS(screenTape, SCREEN_HOUSE); // We have visited the stables.
+    EXPECT_CONTAINS(screenTape, SCREEN_MENU); // Opened the game menu while in the Arena.
+    EXPECT_MISSES(screenTape, SCREEN_SAVEGAME); // But save menu didn't open on click.
 }
 
 GAME_TEST(Issues, Issue1368) {
@@ -498,24 +522,21 @@ GAME_TEST(Issues, Issue1368) {
     auto canActTape = tapes.custom([] { return pParty->canActCount(); });
     auto sleepTape = tapes.custom([] { return pParty->pCharacters[0].conditions.Has(CONDITION_SLEEP); });
     test.playTraceFromTestData("issue_1368.mm7", "issue_1368.json");
-    // No one can act - try waking
-    EXPECT_EQ(canActTape.min(), 0);
-    // Shouldve been asleep
-    EXPECT_TRUE(sleepTape.contains(true));
-    // But awake at the end
-    EXPECT_EQ(sleepTape.back(), false);
+    EXPECT_EQ(canActTape.min(), 0); // No one can act - try waking.
+    EXPECT_CONTAINS(sleepTape, true); // Should've been asleep.
+    EXPECT_EQ(sleepTape.back(), false); // But awake at the end.
 }
 
 GAME_TEST(Issues, Issue1370) {
-    // CHARACTER_EXPRESSION_TALK doesn't work
+    // PORTRAIT_TALK doesn't work
     EXPECT_TRUE(fuzzyEquals(2.53f, pAudioPlayer->getSoundLength(SOUND_EndTurnBasedMode), 0.001f));
     EXPECT_TRUE(fuzzyEquals(2.49f, pAudioPlayer->getSoundLength(static_cast<SoundId>(6480)), 0.001f));
 
     // Can be any character selected to talk on map change
-    auto someonesTalking = tapes.custom([] { for (const auto& ch : pParty->pCharacters) if (ch.expression == CHARACTER_EXPRESSION_TALK) return true; return false; });
-    auto talkExprTimeTape = tapes.custom([] { for (const auto& ch : pParty->pCharacters) if (ch.expression == CHARACTER_EXPRESSION_TALK) return ch.uExpressionTimeLength; return Duration(); });
+    auto someonesTalking = tapes.custom([] { for (const auto& ch : pParty->pCharacters) if (ch.portrait == PORTRAIT_TALK) return true; return false; });
+    auto talkExprTimeTape = tapes.custom([] { for (const auto& ch : pParty->pCharacters) if (ch.portrait == PORTRAIT_TALK) return ch.portraitTimeLength; return Duration(); });
     test.playTraceFromTestData("issue_1370.mm7", "issue_1370.json", [] { engine->config->settings.VoiceLevel.setValue(1); });
-    EXPECT_TRUE(someonesTalking.contains(true));
+    EXPECT_CONTAINS(someonesTalking, true);
     EXPECT_GT(talkExprTimeTape.max(), 128_ticks);  // Check that we have at least a second of speech to cover all
     EXPECT_EQ(someonesTalking.back(), false);
 }
@@ -534,8 +555,8 @@ GAME_TEST(Issues, Issue1383) {
 
     Character character;
     character.pActiveSkills[CHARACTER_SKILL_MERCHANT] = CombinedSkillValue(10, CHARACTER_SKILL_MASTERY_GRANDMASTER);
-    ItemGen item;
-    item.uItemID = ITEM_SPELLBOOK_ARMAGEDDON;
+    Item item;
+    item.itemId = ITEM_SPELLBOOK_ARMAGEDDON;
     int gmPrice = PriceCalculator::itemBuyingPriceForPlayer(&character, item.GetValue(), 10.0f);
     EXPECT_EQ(gmPrice, 7500);
     EXPECT_EQ(item.GetValue(), 7500);
@@ -594,6 +615,28 @@ GAME_TEST(Issues, Issue1429c) {
     EXPECT_EQ(hpTape.back(), pParty->pCharacters[3].GetMaxHealth() / 2);
 }
 
+GAME_TEST(Issues, Issue1430) {
+    // Party can't die of exhaustion.
+    // This happened to be a non-issue. Party CAN die of exhaustion, but on 100 realtime seconds per frame party was
+    // slamming into the ground upon respawn at 100g & insta-dying. We just check here that this doesn't happen.
+    test.prepareForNextTest(100000, RANDOM_ENGINE_MERSENNE_TWISTER); // 100 realtime seconds per frame.
+    engine->config->debug.NoActors.setValue(true);
+
+    auto deathsTape = tapes.deaths();
+    auto hpsTape = charTapes.hps();
+    auto statusTape = tapes.statusBar();
+
+    game.startNewGame();
+    test.startTaping();
+    game.tick(200); // 20k realtime seconds = 600k in-game seconds = 166 in-game hours, enough to die once.
+
+    EXPECT_EQ(deathsTape.delta(), 1);
+    EXPECT_EQ(hpsTape.back(), tape(1, 1, 1, 1));
+
+    // We check the string below with starts_with b/c it contains Windows-1252-encoded "..." as last char. Doh.
+    EXPECT_CONTAINS(statusTape, [](std::string_view status) { return status.starts_with("Once again you've cheated death!"); });
+}
+
 GAME_TEST(Prs, Pr1440) {
     // Frame table search is off by 1 tick.
     TextureFrameTable table;
@@ -602,7 +645,7 @@ GAME_TEST(Prs, Pr1440) {
     frame0.name = "dec33b";
     frame0.animationDuration = 16_ticks;
     frame0.frameDuration = 8_ticks;
-    frame0.flags = TEXTURE_FRAME_TABLE_MORE_FRAMES;
+    frame0.flags = FRAME_HAS_MORE;
     GraphicsImage *tex0 = frame0.GetTexture();
 
     TextureFrame frame1;
@@ -625,7 +668,7 @@ GAME_TEST(Prs, Pr1440) {
         EXPECT_EQ(table.GetFrameTexture(0, Duration::fromTicks(i)), tex1) << i;
 }
 
-GAME_TEST(Issues, Issue1447A) {
+GAME_TEST(Issues, Issue1447a) {
     // Fire bolt doesn't emit particles in turn based mode
     auto particlesTape = tapes.custom([] { return std::ranges::count_if(engine->particle_engine.get()->pParticles,
                                         [](const Particle &par) { return par.type != ParticleType_Invalid; }); });
@@ -635,7 +678,7 @@ GAME_TEST(Issues, Issue1447A) {
     EXPECT_GT(particlesTape.max(), 10);
 }
 
-GAME_TEST(Issues, Issue1447B) {
+GAME_TEST(Issues, Issue1447b) {
     // Fireball doesn't emit particles in turn based mode
     auto particlesTape = tapes.custom([] { return std::ranges::count_if(engine->particle_engine.get()->pParticles,
                                         [](const Particle& par) { return par.type != ParticleType_Invalid; }); });
@@ -645,7 +688,7 @@ GAME_TEST(Issues, Issue1447B) {
     EXPECT_GT(particlesTape.max(), 10);
 }
 
-GAME_TEST(Issues, Issue1447C) {
+GAME_TEST(Issues, Issue1447c) {
     // Acid blast doesn't emit particles in turn based mode
     auto particlesTape = tapes.custom([] { return std::ranges::count_if(engine->particle_engine.get()->pParticles,
                                         [](const Particle& par) { return par.type != ParticleType_Invalid; }); });
@@ -684,12 +727,12 @@ GAME_TEST(Issues, Issue1449) {
 
     // Then we just check that the necessary animation frames were actually displayed.
     auto flatIcons = iconsTape.flattened();
-    EXPECT_TRUE(flatIcons.containsAll("ia01-001", "ia01-002", "ia01-003", "ia01-004", "ia01-005", "ia01-006",
-                                      "ia01-007", "ia01-008", "ia01-009", "ia01-010")); // Opening hand animation.
-    EXPECT_TRUE(flatIcons.containsAll("ia01-011", "ia01-012", "ia01-013", "ia01-014")); // Fingers.
-
-    // Hourglass animation is 10 frames long, we only see the first 5 frames.
-    EXPECT_TRUE(flatIcons.containsAll("ia02-001", "ia02-002", "ia02-003", "ia02-004", "ia02-005"));
+    for (const char *icon : {"ia01-001", "ia01-002", "ia01-003", "ia01-004", "ia01-005", "ia01-006", "ia01-007", "ia01-008", "ia01-009", "ia01-010"})
+        EXPECT_CONTAINS(flatIcons, icon); // Check opening hand animation.
+    for (const char *icon : {"ia01-011", "ia01-012", "ia01-013", "ia01-014"})
+        EXPECT_CONTAINS(flatIcons, icon); // Fingers.
+    for (const char *icon : {"ia02-001", "ia02-002", "ia02-003", "ia02-004", "ia02-005"})
+        EXPECT_CONTAINS(flatIcons, icon); // Hourglass animation is 10 frames long, we only see the first 5 frames.
 }
 
 GAME_TEST(Issues, Issue1454) {
@@ -788,7 +831,7 @@ GAME_TEST(Issues, Issue1476) {
     auto hpTape = tapes.totalHp();
     auto exprTape = tapes.custom([] { return pParty->_delayedReactionSpeech; });
     test.playTraceFromTestData("issue_1476.mm7", "issue_1476.json");
-    EXPECT_TRUE(exprTape.contains(SPEECH_DAMAGED_PARTY));
+    EXPECT_CONTAINS(exprTape, SPEECH_DAMAGED_PARTY);
     EXPECT_LT(hpTape.back(), hpTape.front());
 }
 
@@ -806,10 +849,10 @@ GAME_TEST(Issues, Issue1478) {
 
 GAME_TEST(Issues, Issue1479) {
     // Crash when identifying Chaos Hydra with ID Monster skill.
-    auto expressionTape = charTapes.expression(2);
+    auto expressionTape = charTapes.portrait(2);
     test.playTraceFromTestData("issue_1479.mm7", "issue_1479.json");
     EXPECT_EQ(pParty->pCharacters[2].getActualSkillValue(CHARACTER_SKILL_MONSTER_ID).mastery(), CHARACTER_SKILL_MASTERY_GRANDMASTER);
-    EXPECT_TRUE(expressionTape.contains(CHARACTER_EXPRESSION_47)); // Reaction to strong monster id.
+    EXPECT_CONTAINS(expressionTape, PORTRAIT_47); // Reaction to strong monster id.
 }
 
 GAME_TEST(Issues, Issue1482) {
@@ -826,12 +869,12 @@ GAME_TEST(Issues, Issue1482) {
 
 GAME_TEST(Issues, Issue1489) {
     // Cannot equip amulets or gauntlets
-    auto bootTape = tapes.custom([] { auto item = pParty->pCharacters[0].GetBootItem(); if (!item) return ITEM_NULL; return item->uItemID; });
-    auto helmetTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetHelmItem(); if (!item) return ITEM_NULL; return item->uItemID; });
-    auto beltTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetBeltItem(); if (!item) return ITEM_NULL; return item->uItemID; });
-    auto cloakTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetCloakItem(); if (!item) return ITEM_NULL; return item->uItemID; });
-    auto gauntletTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetGloveItem(); if (!item) return ITEM_NULL; return item->uItemID;; });
-    auto amuletTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetAmuletItem(); if (!item) return ITEM_NULL; return item->uItemID;; });
+    auto bootTape = tapes.custom([] { auto item = pParty->pCharacters[0].GetBootItem(); if (!item) return ITEM_NULL; return item->itemId; });
+    auto helmetTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetHelmItem(); if (!item) return ITEM_NULL; return item->itemId; });
+    auto beltTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetBeltItem(); if (!item) return ITEM_NULL; return item->itemId; });
+    auto cloakTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetCloakItem(); if (!item) return ITEM_NULL; return item->itemId; });
+    auto gauntletTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetGloveItem(); if (!item) return ITEM_NULL; return item->itemId;; });
+    auto amuletTape = tapes.custom([] {  auto item = pParty->pCharacters[0].GetAmuletItem(); if (!item) return ITEM_NULL; return item->itemId;; });
     test.playTraceFromTestData("issue_1489.mm7", "issue_1489.json");
 
     for (const auto& character : pParty->pCharacters) {
@@ -839,15 +882,15 @@ GAME_TEST(Issues, Issue1489) {
     }
     // Check items were removed and re-equipped
     EXPECT_EQ(bootTape.front(), bootTape.back());
-    EXPECT_TRUE(bootTape.contains(ITEM_NULL));
+    EXPECT_CONTAINS(bootTape, ITEM_NULL);
     EXPECT_EQ(helmetTape.front(), helmetTape.back());
-    EXPECT_TRUE(helmetTape.contains(ITEM_NULL));
+    EXPECT_CONTAINS(helmetTape, ITEM_NULL);
     EXPECT_EQ(beltTape.front(), beltTape.back());
-    EXPECT_TRUE(beltTape.contains(ITEM_NULL));
+    EXPECT_CONTAINS(beltTape, ITEM_NULL);
     EXPECT_EQ(cloakTape.front(), cloakTape.back());
-    EXPECT_TRUE(cloakTape.contains(ITEM_NULL));
+    EXPECT_CONTAINS(cloakTape, ITEM_NULL);
     EXPECT_EQ(gauntletTape.front(), gauntletTape.back());
-    EXPECT_TRUE(gauntletTape.contains(ITEM_NULL));
+    EXPECT_CONTAINS(gauntletTape, ITEM_NULL);
     EXPECT_EQ(amuletTape.front(), amuletTape.back());
-    EXPECT_TRUE(amuletTape.contains(ITEM_NULL));
+    EXPECT_CONTAINS(amuletTape, ITEM_NULL);
 }
